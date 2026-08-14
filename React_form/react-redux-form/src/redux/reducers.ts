@@ -1,18 +1,11 @@
-import { SET_USER } from "./actions";
-
-interface User {
-  name: string;
-  email: string;
-  education: string;
-  dateOfBirth: string;
-}
+import { SET_USER, CLEAR_USERS, type User } from "./actions";
 
 interface State {
-  user: User | null;
+  users: User[];
 }
 
 const initialState: State = {
-  user: null,
+  users: [],
 };
 
 const userReducer = (
@@ -23,7 +16,13 @@ const userReducer = (
     case SET_USER:
       return {
         ...state,
-        user: action.payload,
+        users: [...state.users, action.payload],
+      };
+
+    case CLEAR_USERS:
+      return {
+        ...state,
+        users: [],
       };
 
     default:
