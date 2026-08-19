@@ -2,6 +2,7 @@ import { useForm, useFieldArray } from "react-hook-form";
 import { useDispatch } from "react-redux";
 import { setUser } from "../redux/actions";
 import { useNavigate } from "react-router-dom";
+import { createUser } from "../api/userApi"; // NEW
 
 interface Education {
   degree: string;
@@ -10,7 +11,7 @@ interface Education {
 }
 
 interface FormData {
-  name: string;
+  fullName: string;
   email: string;
   phone: string;
   dateOfBirth: string;
@@ -30,7 +31,7 @@ const UserForm = () => {
     formState: { errors },
   } = useForm<FormData>({
     defaultValues: {
-      name: "",
+      fullName: "",
       email: "",
       phone: "",
       dateOfBirth: "",
@@ -45,15 +46,24 @@ const UserForm = () => {
     name: "education",
   });
 
-  const onSubmit = (data: FormData) => {
-    dispatch(setUser(data));
-    navigate("/display");
+  // UPDATED: submit function
+  const onSubmit = async (data: FormData) => {
+    try {
+      // Send form data to ASP.NET Core API
+      await createUser(data);
+
+      // Keep your existing Redux functionality
+      dispatch(setUser(data));
+
+      // Go to display page
+      navigate("/display");
+    } catch (error) {
+      console.error("Error saving user:", error);
+    }
   };
 
   return (
     <div className="mx-auto w-full max-w-6xl rounded-lg border border-gray-300 bg-white p-6 shadow-sm md:p-10">
-
-     
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
 
@@ -65,15 +75,15 @@ const UserForm = () => {
 
           <input
             type="text"
-            {...register("name", {
+            {...register("fullName", {
               required: "Name is required",
             })}
             className="w-full rounded border px-4 py-3 text-lg"
           />
 
-          {errors.name && (
+          {errors.fullName && (
             <p className="mt-1 text-sm text-red-500">
-              {errors.name.message}
+              {errors.fullName.message}
             </p>
           )}
         </div>

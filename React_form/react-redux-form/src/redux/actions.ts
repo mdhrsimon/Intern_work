@@ -8,7 +8,7 @@ export interface Education {
 }
 
 export interface User {
-  name: string;
+  fullName: string;
   email: string;
   phone: string;
   dateOfBirth: string;

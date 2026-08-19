@@ -1,19 +1,38 @@
-import { useState } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { clearUsers, type User } from "../redux/actions";
-
-interface RootState {
-  users: User[];
-}
+import { type User } from "../redux/actions";
+import { getUsers, clearUsers } from "../api/userApi";
 
 const DisplayPage = () => {
-  const users = useSelector((state: RootState) => state.users);
-  const dispatch = useDispatch();
+  // Users are loaded ONLY from the database
+  const [displayUsers, setDisplayUsers] = useState<User[]>([]);
 
-  const [showAll, setShowAll] = useState(false);
+  // Remember whether the user selected "See All"
+  const [showAll, setShowAll] = useState(() => {
+    return localStorage.getItem("showAll") === "true";
+  });
 
-  if (users.length === 0) {
+  // Fetch users from the database when the page loads
+  useEffect(() => {
+    const loadUsers = async () => {
+      try {
+        const response = await getUsers();
+
+        // Store database users
+        setDisplayUsers(response.data);
+      } catch (error) {
+        console.error("Error loading users:", error);
+      }
+    };
+
+    loadUsers();
+  }, []);
+
+  // Only database users are displayed
+  const usersToDisplay = displayUsers;
+
+  // No users found
+  if (usersToDisplay.length === 0) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="w-full max-w-lg rounded-lg border p-8 text-center">
@@ -36,7 +55,50 @@ const DisplayPage = () => {
     );
   }
 
-  const latestUser = users[users.length - 1];
+  // Last user from the database
+  const latestUser = usersToDisplay[usersToDisplay.length - 1];
+
+  // See All
+  const handleSeeAll = async () => {
+    try {
+      // Fetch all users directly from the database
+      const response = await getUsers();
+
+      setDisplayUsers(response.data);
+      setShowAll(true);
+
+      // Remember that the user selected See All
+      localStorage.setItem("showAll", "true");
+    } catch (error) {
+      console.error("Error loading users:", error);
+    }
+  };
+
+  // Show Latest
+  const handleShowLatest = () => {
+    setShowAll(false);
+
+    // Remember that the user selected Show Latest
+    localStorage.setItem("showAll", "false");
+  };
+
+  // Clear All
+  const handleClearAll = async () => {
+    try {
+      // Clear users from the database
+      await clearUsers();
+
+      // Clear users from the page
+      setDisplayUsers([]);
+
+      // Return to latest mode
+      setShowAll(false);
+
+      localStorage.setItem("showAll", "false");
+    } catch (error) {
+      console.error("Error clearing users:", error);
+    }
+  };
 
   return (
     <div className="min-h-screen px-4 py-10">
@@ -46,13 +108,16 @@ const DisplayPage = () => {
           Submitted Information
         </h1>
 
-        {/* Latest User */}
+        {/* ========================= */}
+        {/* LATEST USER */}
+        {/* ========================= */}
+
         {!showAll && (
           <div className="rounded-lg border p-6">
 
             <div className="space-y-3 text-lg">
               <p>
-                <strong>Name:</strong> {latestUser.name}
+                <strong>Name:</strong> {latestUser.fullName}
               </p>
 
               <p>
@@ -84,55 +149,66 @@ const DisplayPage = () => {
               </h2>
 
               <div className="space-y-3">
-                {latestUser.education.map((education, index) => (
-                  <div
-                    key={index}
-                    className="rounded border p-4"
-                  >
-                    <p>
-                      <strong>Degree:</strong>{" "}
-                      {education.degree}
-                    </p>
+                {latestUser.education.map(
+                  (education, index) => (
+                    <div
+                      key={index}
+                      className="rounded border p-4"
+                    >
+                      <p>
+                        <strong>Degree:</strong>{" "}
+                        {education.degree}
+                      </p>
 
-                    <p>
-                      <strong>Institute:</strong>{" "}
-                      {education.institute}
-                    </p>
+                      <p>
+                        <strong>Institute:</strong>{" "}
+                        {education.institute}
+                      </p>
 
-                    <p>
-                      <strong>Year Passed:</strong>{" "}
-                      {education.yearPassed}
-                    </p>
-                  </div>
-                ))}
+                      <p>
+                        <strong>Year Passed:</strong>{" "}
+                        {education.yearPassed}
+                      </p>
+                    </div>
+                  )
+                )}
               </div>
             </div>
+
           </div>
         )}
 
-        {/* All Users */}
+        {/* ========================= */}
+        {/* ALL USERS */}
+        {/* ========================= */}
+
         {showAll && (
           <div className="space-y-6">
-            {users.map((user, index) => (
+
+            {usersToDisplay.map((user, index) => (
               <div
                 key={index}
                 className="rounded-lg border p-6"
               >
+
                 <h2 className="mb-4 text-lg font-bold">
                   Submission {index + 1}
                 </h2>
 
                 <div className="space-y-3">
                   <p>
-                    <strong>Name:</strong> {user.name}
+                    <strong>Name:</strong>{" "}
+                    {user.fullName}
                   </p>
 
                   <p>
-                    <strong>Email:</strong> {user.email}
+                    <strong>Email:</strong>{" "}
+                    {user.email}
                   </p>
 
                   <p>
-                    <strong>Phone:</strong> {user.phone}
+                    <strong>Phone:</strong>{" "}
+                    {user.phone}
                   </p>
 
                   <p>
@@ -141,14 +217,17 @@ const DisplayPage = () => {
                   </p>
 
                   <p>
-                    <strong>Address:</strong> {user.address}
+                    <strong>Address:</strong>{" "}
+                    {user.address}
                   </p>
 
                   <p>
-                    <strong>Gender:</strong> {user.gender}
+                    <strong>Gender:</strong>{" "}
+                    {user.gender}
                   </p>
                 </div>
 
+                {/* Education */}
                 <div className="mt-6">
                   <h3 className="mb-3 font-semibold">
                     Education
@@ -180,30 +259,44 @@ const DisplayPage = () => {
                     )}
                   </div>
                 </div>
+
               </div>
             ))}
+
           </div>
         )}
 
-        {/* Buttons */}
+        {/* ========================= */}
+        {/* BUTTONS */}
+        {/* ========================= */}
+
         <div className="mt-6 flex gap-3">
 
+          {/* See All / Show Latest */}
           <button
             type="button"
-            onClick={() => setShowAll(!showAll)}
+            onClick={() => {
+              if (showAll) {
+                handleShowLatest();
+              } else {
+                handleSeeAll();
+              }
+            }}
             className="w-full rounded-lg bg-[#2563EB] px-6 py-3 text-lg font-semibold text-white shadow-md shadow-[#2563EB]/30 transition hover:bg-[#1D4ED8] active:scale-[0.99] md:w-auto"
           >
             {showAll ? "Show Latest" : "See All"}
           </button>
 
+          {/* Clear All */}
           <button
             type="button"
-            onClick={() => dispatch(clearUsers())}
-            className="w-full rounded-lg border-2 border-[#2563EB] bg-white px-6 py-3 text-sm font-semibold text-black shadow-sm transition-all duration-200 hover:bg-gray-200  active:scale-[0.99] md:w-auto"
+            onClick={handleClearAll}
+            className="w-full rounded-lg border-2 border-[#2563EB] bg-white px-6 py-3 text-sm font-semibold text-black shadow-sm transition-all duration-200 hover:bg-gray-200 active:scale-[0.99] md:w-auto"
           >
             Clear All
           </button>
 
+          {/* Add Another */}
           <Link
             to="/"
             className="w-full rounded-lg bg-[#2563EB] px-6 py-3 text-lg font-semibold text-white shadow-md shadow-[#2563EB]/30 transition hover:bg-[#1D4ED8] active:scale-[0.99] md:w-auto"
