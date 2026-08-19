@@ -1,4 +1,4 @@
-@ReactFormApi_HostAddress = http://localhost:5266
+@ReactFormApi_HostAddress = http://localhost:5070
 
 GET {{ReactFormApi_HostAddress}}/weatherforecast/
 Accept: application/json
