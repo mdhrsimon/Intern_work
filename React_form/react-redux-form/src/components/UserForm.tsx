@@ -1,35 +1,50 @@
-import { useForm, useFieldArray } from "react-hook-form";
-import { useDispatch } from "react-redux";
-import { setUser } from "../redux/actions";
+import {
+  FormProvider,
+  useForm,
+  Controller,
+} from "react-hook-form";
+
 import { useNavigate } from "react-router-dom";
-import { createUser } from "../api/userApi"; // NEW
 
-interface Education {
-  degree: string;
-  institute: string;
-  yearPassed: string;
-}
+import FormField from "./FormField";
+import EducationForm from "./EducationForm";
 
-interface FormData {
-  fullName: string;
-  email: string;
-  phone: string;
-  dateOfBirth: string;
-  address: string;
-  gender: string;
-  education: Education[];
-}
+import { useCreateUserMutation } from "../api/userApi";
+import type { User } from "../types/user";
+
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+
+import { Input } from "@/components/ui/input";
+
+import { Textarea } from "@/components/ui/textarea";
+
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+import { Button } from "@/components/ui/button";
+
+import {
+  Alert,
+  AlertDescription,
+} from "@/components/ui/alert";
+
+import { Spinner } from "@/components/ui/spinner";
 
 const UserForm = () => {
-  const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const {
-    register,
-    control,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<FormData>({
+  const methods = useForm<User>({
     defaultValues: {
       fullName: "",
       email: "",
@@ -41,21 +56,22 @@ const UserForm = () => {
     },
   });
 
-  const { fields, append, remove } = useFieldArray({
+  const {
+    register,
+    handleSubmit,
     control,
-    name: "education",
-  });
+    formState: { errors },
+  } = methods;
 
-  // UPDATED: submit function
-  const onSubmit = async (data: FormData) => {
+  const [
+    createUser,
+    { isLoading, error },
+  ] = useCreateUserMutation();
+
+  const onSubmit = async (data: User) => {
     try {
-      // Send form data to ASP.NET Core API
-      await createUser(data);
+      await createUser(data).unwrap();
 
-      // Keep your existing Redux functionality
-      dispatch(setUser(data));
-
-      // Go to display page
       navigate("/display");
     } catch (error) {
       console.error("Error saving user:", error);
@@ -63,270 +79,212 @@ const UserForm = () => {
   };
 
   return (
-    <div className="mx-auto w-full max-w-6xl rounded-lg border border-gray-300 bg-white p-6 shadow-sm md:p-10">
+    <FormProvider {...methods}>
+      <Card className="mx-auto w-full max-w-3xl shadow-md border-0 bg-white">
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        {/* Header */}
+        <CardHeader className="text-center px-6 py-8 md:px-8">
 
-        {/* Full Name */}
-        <div>
-          <label className="mb-2 block text-lg font-medium">
-            Full Name
-          </label>
+          <CardTitle className="text-3xl font-bold tracking-tight">
+            User Information
+          </CardTitle>
 
-          <input
-            type="text"
-            {...register("fullName", {
-              required: "Name is required",
-            })}
-            className="w-full rounded border px-4 py-3 text-lg"
-          />
+          <CardDescription className="text-base mt-2">
+            Please enter your personal information below.
+          </CardDescription>
 
-          {errors.fullName && (
-            <p className="mt-1 text-sm text-red-500">
-              {errors.fullName.message}
-            </p>
-          )}
-        </div>
+        </CardHeader>
 
-        {/* Email */}
-        <div>
-          <label className="mb-2 block text-lg font-medium">
-            Email
-          </label>
+        <CardContent className="px-6 pb-8 md:px-8">
 
-          <input
-            type="email"
-            {...register("email", {
-              required: "Email is required",
-              pattern: {
-                value: /^\S+@\S+\.\S+$/,
-                message: "Enter a valid email",
-              },
-            })}
-            className="w-full rounded border px-4 py-3 text-lg"
-          />
-
-          {errors.email && (
-            <p className="mt-1 text-sm text-red-500">
-              {errors.email.message}
-            </p>
-          )}
-        </div>
-
-        {/* Phone */}
-        <div>
-          <label className="mb-2 block text-lg font-medium">
-            Phone
-          </label>
-
-          <input
-            type="tel"
-            {...register("phone", {
-              required: "Phone number is required",
-              minLength: {
-                value: 10,
-                message: "Phone number must be at least 10 digits",
-              },
-            })}
-            className="w-full rounded border px-4 py-3 text-lg"
-          />
-
-          {errors.phone && (
-            <p className="mt-1 text-sm text-red-500">
-              {errors.phone.message}
-            </p>
-          )}
-        </div>
-
-        {/* Date of Birth */}
-        <div>
-          <label className="mb-2 block text-lg font-medium">
-            Date of Birth
-          </label>
-
-          <input
-            type="date"
-            {...register("dateOfBirth", {
-              required: "Date of birth is required",
-            })}
-            className="w-full rounded border px-4 py-3 text-lg"
-          />
-
-          {errors.dateOfBirth && (
-            <p className="mt-1 text-sm text-red-500">
-              {errors.dateOfBirth.message}
-            </p>
-          )}
-        </div>
-
-        {/* Address */}
-        <div>
-          <label className="mb-2 block text-lg font-medium">
-            Address
-          </label>
-
-          <input
-            type="text"
-            {...register("address", {
-              required: "Address is required",
-            })}
-            className="w-full rounded border px-4 py-3 text-base"
-          />
-
-          {errors.address && (
-            <p className="mt-1 text-sm text-red-500">
-              {errors.address.message}
-            </p>
-          )}
-        </div>
-
-        {/* Gender */}
-        <div>
-          <label className="mb-2 block text-lg font-medium">
-            Gender
-          </label>
-
-          <select
-            {...register("gender", {
-              required: "Please select your gender",
-            })}
-            className="w-full rounded border px-4 py-3 text-base"
+          <form
+            onSubmit={handleSubmit(onSubmit)}
+            className="space-y-8"
           >
-            <option value="">Select Gender</option>
-            <option value="Male">Male</option>
-            <option value="Female">Female</option>
-            <option value="Other">Other</option>
-          </select>
+            <div className="space-y-6">
 
-          {errors.gender && (
-            <p className="mt-1 text-sm text-red-500">
-              {errors.gender.message}
-            </p>
-          )}
-        </div>
 
-        {/* Education */}
-        <div>
-          <div className="mb-3 flex items-center justify-between">
-            <label className="text-lg font-medium">
-              Education
-            </label>
+              {/* Full Name + Email */}
+              <div className="grid gap-6 md:grid-cols-2">
 
-            <button
-              type="button"
-              onClick={() =>
-                append({
-                  degree: "",
-                  institute: "",
-                  yearPassed: "",
-                })
-              }
-              className="w-full rounded-lg bg-[#2563EB] px-6 py-3 text-m font-semibold text-white shadow-md shadow-[#2563EB]/30 transition hover:bg-[#1D4ED8] active:scale-[0.99] md:w-auto"
-            >
-              + Add Education
-            </button>
-          </div>
-
-          <div className="space-y-4">
-
-            {fields.map((field, index) => (
-              <div
-                key={field.id}
-                className="relative rounded border border-gray-300 bg-gray-50 p-5"
-              >
-
-                {/* Close Button */}
-                <button
-                  type="button"
-                  onClick={() => remove(index)}
-                  className="absolute right-3 top-3 text-2xl leading-none text-black-500 hover:text-gray-500"
-                  aria-label="Remove education"
+                <FormField
+                  label="Full Name"
+                  error={errors.fullName?.message}
                 >
-                  ×
-                </button>
+                  <Input
+                    type="text"
+                    placeholder="Enter your full name"
+                    className="h-11 text-base bg-gray-50/50"
+                    {...register("fullName", {
+                      required: "Name is required",
+                    })}
+                  />
+                </FormField>
 
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <FormField
+                  label="Email"
+                  error={errors.email?.message}
+                >
+                  <Input
+                    type="email"
+                    placeholder="example@email.com"
+                    className="h-11 text-base bg-gray-50/50"
+                    {...register("email", {
+                      required: "Email is required",
+                      pattern: {
+                        value: /^\S+@\S+\.\S+$/,
+                        message: "Enter a valid email",
+                      },
+                    })}
+                  />
+                </FormField>
 
-                  {/* Degree */}
-                  <div>
-                    <label className="mb-2 block text-sm font-medium">
-                      Degree
-                    </label>
-
-                    <input
-                      type="text"
-                      {...register(`education.${index}.degree`, {
-                        required: "Degree is required",
-                      })}
-                      className="w-full rounded border bg-white px-4 py-3"
-                    />
-
-                    {errors.education?.[index]?.degree && (
-                      <p className="mt-1 text-sm text-red-500">
-                        {errors.education[index]?.degree?.message}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Institute */}
-                  <div>
-                    <label className="mb-2 block text-sm font-medium">
-                      Institute
-                    </label>
-
-                    <input
-                      type="text"
-                      {...register(`education.${index}.institute`, {
-                        required: "Institute is required",
-                      })}
-                      className="w-full rounded border bg-white px-4 py-3"
-                    />
-
-                    {errors.education?.[index]?.institute && (
-                      <p className="mt-1 text-sm text-red-500">
-                        {errors.education[index]?.institute?.message}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Year Passed */}
-                  <div>
-                    <label className="mb-2 block text-sm font-medium">
-                      Year Passed
-                    </label>
-
-                    <input
-                      type="number"
-                      {...register(`education.${index}.yearPassed`, {
-                        required: "Year passed is required",
-                      })}
-                      className="w-full rounded border bg-white px-4 py-3"
-                    />
-
-                    {errors.education?.[index]?.yearPassed && (
-                      <p className="mt-1 text-sm text-red-500">
-                        {errors.education[index]?.yearPassed?.message}
-                      </p>
-                    )}
-                  </div>
-
-                </div>
               </div>
-            ))}
 
-          </div>
-        </div>
+              {/* Phone + Date */}
+              <div className="grid gap-6 md:grid-cols-2">
 
-        {/* Submit */}
-        <button
-          type="submit"
-          className="w-full rounded-lg bg-[#2563EB] px-6 py-3 text-lg font-semibold text-white shadow-md shadow-[#2563EB]/30 transition hover:bg-[#1D4ED8] active:scale-[0.99] md:w-auto"
-        >
-          Submit
-        </button>
+                <FormField
+                  label="Phone"
+                  error={errors.phone?.message}
+                >
+                  <Input
+                    type="tel"
+                    placeholder="Enter your phone number"
+                    className="h-11 text-base bg-gray-50/50"
+                    {...register("phone", {
+                      required:
+                        "Phone number is required",
+                      minLength: {
+                        value: 10,
+                        message:
+                          "Phone number must be at least 10 digits",
+                      },
+                    })}
+                  />
+                </FormField>
 
-      </form>
-    </div>
+                <FormField
+                  label="Date of Birth"
+                  error={errors.dateOfBirth?.message}
+                >
+                  <Input
+                    type="date"
+                    className="h-11 text-base bg-gray-50/50"
+                    {...register("dateOfBirth", {
+                      required:
+                        "Date of birth is required",
+                    })}
+                  />
+                </FormField>
+
+              </div>
+
+              {/* Address */}
+              <FormField
+                label="Address"
+                error={errors.address?.message}
+              >
+                <Textarea
+                  placeholder="Enter your address"
+                  className="min-h-16 resize-none text-base bg-gray-50/50"
+                  {...register("address", {
+                    required: "Address is required",
+                  })}
+                />
+              </FormField>
+
+              {/* Gender */}
+              <FormField
+                label="Gender"
+                error={errors.gender?.message}
+              >
+                <Controller
+                  name="gender"
+                  control={control}
+                  rules={{
+                    required:
+                      "Please select your gender",
+                  }}
+                  render={({ field }) => (
+                    <Select
+                      value={field.value}
+                      onValueChange={field.onChange}
+                    >
+                      <SelectTrigger className="h-11 w-full text-base bg-gray-50/50">
+                        <SelectValue placeholder="Select Gender" />
+                      </SelectTrigger>
+
+                      <SelectContent alignItemWithTrigger={false} side="bottom" sideOffset={6} className="bg-white border shadow-lg z-50">
+                        <SelectItem
+                          value="Male"
+                          className="text-base py-2"
+                        >
+                          Male
+                        </SelectItem>
+
+                        <SelectItem
+                          value="Female"
+                          className="text-base py-2"
+                        >
+                          Female
+                        </SelectItem>
+
+                        <SelectItem
+                          value="Other"
+                          className="text-base py-2"
+                        >
+                          Other
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              </FormField>
+
+            </div>
+
+            {/* Education */}
+            <div className="pt-4">
+              <EducationForm />
+            </div>
+
+            {/* API Error */}
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription className="text-base">
+                  Failed to save user. Please try again.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* Submit */}
+            <div className="flex justify-center pt-4">
+
+              <Button
+                type="submit"
+                disabled={isLoading}
+                size="lg"
+                className="text-base px-8 py-6 w-full md:w-auto md:min-w-48"
+              >
+                {isLoading ? (
+                  <>
+                    <Spinner />
+                    Submitting...
+                  </>
+                ) : (
+                  "Submit"
+                )}
+              </Button>
+
+            </div>
+
+          </form>
+
+        </CardContent>
+
+      </Card>
+    </FormProvider>
   );
 };
 

@@ -1,280 +1,265 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import { type User } from "../redux/actions";
-import { getUsers, clearUsers } from "../api/userApi";
+
+import {
+  useGetUsersQuery,
+  useClearUsersMutation,
+} from "../api/userApi";
+
+import UserInformation from "../components/UserInformation";
+import EducationList from "../components/EducationList";
+
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+
+import { Button } from "@/components/ui/button";
+
+import { Skeleton } from "@/components/ui/skeleton";
+
+import {
+  Alert,
+  AlertDescription,
+} from "@/components/ui/alert";
+
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const DisplayPage = () => {
-  // Users are loaded ONLY from the database
-  const [displayUsers, setDisplayUsers] = useState<User[]>([]);
-
-  // Remember whether the user selected "See All"
   const [showAll, setShowAll] = useState(() => {
     return localStorage.getItem("showAll") === "true";
   });
 
-  // Fetch users from the database when the page loads
-  useEffect(() => {
-    const loadUsers = async () => {
-      try {
-        const response = await getUsers();
+  const {
+    data: users = [],
+    isLoading,
+    isError,
+  } = useGetUsersQuery();
 
-        // Store database users
-        setDisplayUsers(response.data);
-      } catch (error) {
-        console.error("Error loading users:", error);
-      }
-    };
+  const [
+    clearUsers,
+    { isLoading: isClearing },
+  ] = useClearUsersMutation();
 
-    loadUsers();
-  }, []);
-
-  // Only database users are displayed
-  const usersToDisplay = displayUsers;
-
-  // No users found
-  if (usersToDisplay.length === 0) {
+  // Loading
+  if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="w-full max-w-lg rounded-lg border p-8 text-center">
-          <h1 className="mb-4 text-4xl font-bold">
-            No User Data Found
-          </h1>
+      <div className="min-h-screen px-4 py-10">
+        <div className="mx-auto max-w-4xl space-y-6">
 
-          <p className="mb-6 text-gray-800">
-            Please submit the form first.
-          </p>
+          <Skeleton className="h-10 w-72" />
 
-          <Link
-            to="/"
-            className="w-full rounded-lg border-2 border-[#1D4ED8] bg-white px-6 py-3 text-lg font-semibold text-black shadow-sm transition hover:bg-gray-200 active:scale-[0.99] md:w-auto"
-          >
-            Go to Form
-          </Link>
+          <Card>
+            <CardContent className="space-y-6 pt-8">
+
+              <div className="grid gap-6 md:grid-cols-2">
+                <Skeleton className="h-16 w-full" />
+                <Skeleton className="h-16 w-full" />
+                <Skeleton className="h-16 w-full" />
+                <Skeleton className="h-16 w-full" />
+              </div>
+
+              <Skeleton className="h-16 w-full" />
+
+              <Skeleton className="h-32 w-full" />
+
+            </CardContent>
+          </Card>
+
         </div>
       </div>
     );
   }
 
-  // Last user from the database
-  const latestUser = usersToDisplay[usersToDisplay.length - 1];
+  // Error
+  if (isError) {
+    return (
+      <div className="flex min-h-screen items-center justify-center px-4">
 
-  // See All
-  const handleSeeAll = async () => {
-    try {
-      // Fetch all users directly from the database
-      const response = await getUsers();
+        <Card className="w-full max-w-lg">
 
-      setDisplayUsers(response.data);
-      setShowAll(true);
+          <CardHeader>
+            <CardTitle className="text-2xl">
+              Failed to load users
+            </CardTitle>
+          </CardHeader>
 
-      // Remember that the user selected See All
-      localStorage.setItem("showAll", "true");
-    } catch (error) {
-      console.error("Error loading users:", error);
-    }
+          <CardContent className="space-y-6">
+
+            <Alert variant="destructive">
+              <AlertDescription className="text-base">
+                Something went wrong while loading
+                the submitted information.
+              </AlertDescription>
+            </Alert>
+
+            <Link to="/">
+              <Button size="lg">
+                Go to Form
+              </Button>
+            </Link>
+
+          </CardContent>
+
+        </Card>
+
+      </div>
+    );
+  }
+
+  // No users
+  if (users.length === 0) {
+    return (
+      <div className="flex min-h-screen items-center justify-center px-4">
+
+        <Card className="w-full max-w-lg">
+
+          <CardHeader>
+            <CardTitle className="text-2xl">
+              No User Data Found
+            </CardTitle>
+          </CardHeader>
+
+          <CardContent className="space-y-6">
+
+            <p className="text-base text-muted-foreground">
+              Please submit the form first to see
+              your information here.
+            </p>
+
+            <Link to="/">
+              <Button size="lg">
+                Go to Form
+              </Button>
+            </Link>
+
+          </CardContent>
+
+        </Card>
+
+      </div>
+    );
+  }
+
+  const latestUser =
+    users[users.length - 1];
+
+  const handleSeeAll = () => {
+    setShowAll(true);
+    localStorage.setItem("showAll", "true");
   };
 
-  // Show Latest
   const handleShowLatest = () => {
     setShowAll(false);
-
-    // Remember that the user selected Show Latest
     localStorage.setItem("showAll", "false");
   };
 
-  // Clear All
   const handleClearAll = async () => {
     try {
-      // Clear users from the database
-      await clearUsers();
+      await clearUsers().unwrap();
 
-      // Clear users from the page
-      setDisplayUsers([]);
-
-      // Return to latest mode
       setShowAll(false);
-
       localStorage.setItem("showAll", "false");
     } catch (error) {
-      console.error("Error clearing users:", error);
+      console.error(
+        "Error clearing users:",
+        error
+      );
     }
   };
 
   return (
     <div className="min-h-screen px-4 py-10">
-      <div className="mx-auto max-w-2xl">
 
-        <h1 className="mb-6 text-2xl font-bold">
-          Submitted Information
-        </h1>
+      <div className="mx-auto max-w-4xl space-y-7">
 
-        {/* ========================= */}
-        {/* LATEST USER */}
-        {/* ========================= */}
+        {/* Page Header */}
+        <div>
+          <h1 className="text-3xl font-semibold tracking-tight">
+            Submitted Information
+          </h1>
 
+          <p className="mt-2 text-base text-muted-foreground">
+            View the information submitted through
+            the user form.
+          </p>
+        </div>
+
+        {/* Latest User */}
         {!showAll && (
-          <div className="rounded-lg border p-6">
+          <Card>
 
-            <div className="space-y-3 text-lg">
-              <p>
-                <strong>Name:</strong> {latestUser.fullName}
-              </p>
+            <CardHeader className="border-b">
+              <CardTitle className="text-2xl">
+                Latest Submission
+              </CardTitle>
+            </CardHeader>
 
-              <p>
-                <strong>Email:</strong> {latestUser.email}
-              </p>
+            <CardContent className="pt-8">
 
-              <p>
-                <strong>Phone:</strong> {latestUser.phone}
-              </p>
+              <UserInformation
+                user={latestUser}
+              />
 
-              <p>
-                <strong>Date of Birth:</strong>{" "}
-                {latestUser.dateOfBirth}
-              </p>
+              <EducationList
+                education={latestUser.education}
+              />
 
-              <p>
-                <strong>Address:</strong> {latestUser.address}
-              </p>
+            </CardContent>
 
-              <p>
-                <strong>Gender:</strong> {latestUser.gender}
-              </p>
-            </div>
-
-            {/* Education */}
-            <div className="mt-6">
-              <h2 className="mb-3 text-lg font-semibold">
-                Education
-              </h2>
-
-              <div className="space-y-3">
-                {latestUser.education.map(
-                  (education, index) => (
-                    <div
-                      key={index}
-                      className="rounded border p-4"
-                    >
-                      <p>
-                        <strong>Degree:</strong>{" "}
-                        {education.degree}
-                      </p>
-
-                      <p>
-                        <strong>Institute:</strong>{" "}
-                        {education.institute}
-                      </p>
-
-                      <p>
-                        <strong>Year Passed:</strong>{" "}
-                        {education.yearPassed}
-                      </p>
-                    </div>
-                  )
-                )}
-              </div>
-            </div>
-
-          </div>
+          </Card>
         )}
 
-        {/* ========================= */}
-        {/* ALL USERS */}
-        {/* ========================= */}
-
+        {/* All Users */}
         {showAll && (
           <div className="space-y-6">
 
-            {usersToDisplay.map((user, index) => (
-              <div
-                key={index}
-                className="rounded-lg border p-6"
-              >
+            {users.map((user, index) => (
+              <Card key={index}>
 
-                <h2 className="mb-4 text-lg font-bold">
-                  Submission {index + 1}
-                </h2>
+                <CardHeader className="border-b">
+                  <CardTitle className="text-xl">
+                    Submission {index + 1}
+                  </CardTitle>
+                </CardHeader>
 
-                <div className="space-y-3">
-                  <p>
-                    <strong>Name:</strong>{" "}
-                    {user.fullName}
-                  </p>
+                <CardContent className="pt-8">
 
-                  <p>
-                    <strong>Email:</strong>{" "}
-                    {user.email}
-                  </p>
+                  <UserInformation
+                    user={user}
+                  />
 
-                  <p>
-                    <strong>Phone:</strong>{" "}
-                    {user.phone}
-                  </p>
+                  <EducationList
+                    education={user.education}
+                  />
 
-                  <p>
-                    <strong>Date of Birth:</strong>{" "}
-                    {user.dateOfBirth}
-                  </p>
+                </CardContent>
 
-                  <p>
-                    <strong>Address:</strong>{" "}
-                    {user.address}
-                  </p>
-
-                  <p>
-                    <strong>Gender:</strong>{" "}
-                    {user.gender}
-                  </p>
-                </div>
-
-                {/* Education */}
-                <div className="mt-6">
-                  <h3 className="mb-3 font-semibold">
-                    Education
-                  </h3>
-
-                  <div className="space-y-3">
-                    {user.education.map(
-                      (education, educationIndex) => (
-                        <div
-                          key={educationIndex}
-                          className="rounded border p-4"
-                        >
-                          <p>
-                            <strong>Degree:</strong>{" "}
-                            {education.degree}
-                          </p>
-
-                          <p>
-                            <strong>Institute:</strong>{" "}
-                            {education.institute}
-                          </p>
-
-                          <p>
-                            <strong>Year Passed:</strong>{" "}
-                            {education.yearPassed}
-                          </p>
-                        </div>
-                      )
-                    )}
-                  </div>
-                </div>
-
-              </div>
+              </Card>
             ))}
 
           </div>
         )}
 
-        {/* ========================= */}
-        {/* BUTTONS */}
-        {/* ========================= */}
-
-        <div className="mt-6 flex gap-3">
+        {/* Buttons */}
+        <div className="flex flex-wrap gap-3">
 
           {/* See All / Show Latest */}
-          <button
+          <Button
             type="button"
+            size="lg"
             onClick={() => {
               if (showAll) {
                 handleShowLatest();
@@ -282,31 +267,76 @@ const DisplayPage = () => {
                 handleSeeAll();
               }
             }}
-            className="w-full rounded-lg bg-[#2563EB] px-6 py-3 text-lg font-semibold text-white shadow-md shadow-[#2563EB]/30 transition hover:bg-[#1D4ED8] active:scale-[0.99] md:w-auto"
           >
-            {showAll ? "Show Latest" : "See All"}
-          </button>
+            {showAll
+              ? "Show Latest"
+              : "See All"}
+          </Button>
 
           {/* Clear All */}
-          <button
-            type="button"
-            onClick={handleClearAll}
-            className="w-full rounded-lg border-2 border-[#2563EB] bg-white px-6 py-3 text-sm font-semibold text-black shadow-sm transition-all duration-200 hover:bg-gray-200 active:scale-[0.99] md:w-auto"
-          >
-            Clear All
-          </button>
+          <AlertDialog>
+
+            <AlertDialogTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="lg"
+                />
+              }
+            >
+              Clear All
+            </AlertDialogTrigger>
+
+            <AlertDialogContent>
+
+              <AlertDialogHeader>
+
+                <AlertDialogTitle className="text-lg">
+                  Clear all submissions?
+                </AlertDialogTitle>
+
+                <AlertDialogDescription className="text-base">
+                  This will permanently remove all
+                  submitted user information. This
+                  action cannot be undone.
+                </AlertDialogDescription>
+
+              </AlertDialogHeader>
+
+              <AlertDialogFooter>
+
+                <AlertDialogCancel size="lg">
+                  Cancel
+                </AlertDialogCancel>
+
+                <AlertDialogAction
+                  size="lg"
+                  onClick={handleClearAll}
+                  disabled={isClearing}
+                >
+                  {isClearing
+                    ? "Clearing..."
+                    : "Clear All"}
+                </AlertDialogAction>
+
+              </AlertDialogFooter>
+
+            </AlertDialogContent>
+
+          </AlertDialog>
 
           {/* Add Another */}
-          <Link
-            to="/"
-            className="w-full rounded-lg bg-[#2563EB] px-6 py-3 text-lg font-semibold text-white shadow-md shadow-[#2563EB]/30 transition hover:bg-[#1D4ED8] active:scale-[0.99] md:w-auto"
-          >
-            Add Another
+          <Link to="/">
+            <Button size="lg">
+              Add Another
+            </Button>
           </Link>
 
         </div>
 
       </div>
+
     </div>
   );
 };
