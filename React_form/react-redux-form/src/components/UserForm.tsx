@@ -8,9 +8,8 @@ import { useNavigate } from "react-router-dom";
 
 import FormField from "./FormField";
 import EducationForm from "./EducationForm";
+import { getRole } from "../lib/permissions";
 
-import { useCreateUserMutation } from "../api/userApi";
-import type { User } from "../types/user";
 
 import {
   Card,
@@ -31,6 +30,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  useCreateUserMutation,
+  useUpdateUserMutation,
+} from "../api/userApi";
+import type { User } from "../types/user";
 
 import { Button } from "@/components/ui/button";
 
@@ -41,20 +45,34 @@ import {
 
 import { Spinner } from "@/components/ui/spinner";
 
-const UserForm = () => {
+interface UserFormProps {
+  initialUser?: User;
+  isEdit?: boolean;
+}
+
+const UserForm = ({
+  initialUser,
+  isEdit = false,
+}: UserFormProps) => {
+ 
   const navigate = useNavigate();
 
   const methods = useForm<User>({
-    defaultValues: {
-      fullName: "",
-      email: "",
-      phone: "",
-      dateOfBirth: "",
-      address: "",
-      gender: "",
-      education: [],
-    },
-  });
+  defaultValues: initialUser
+    ? {
+        ...initialUser,
+        education: initialUser.education ?? [],
+      }
+    : {
+        fullName: "",
+        email: "",
+        phone: "",
+        dateOfBirth: "",
+        address: "",
+        gender: "",
+        education: [],
+      },
+});
 
   const {
     register,
@@ -63,20 +81,35 @@ const UserForm = () => {
     formState: { errors },
   } = methods;
 
-  const [
-    createUser,
-    { isLoading, error },
-  ] = useCreateUserMutation();
+  const [createUser, { isLoading: isCreating, error: createError }] =
+  useCreateUserMutation();
+
+  const [updateUser, { isLoading: isUpdating, error: updateError }] =
+  useUpdateUserMutation();
+
+  const isLoading = isCreating || isUpdating;
+  const error = createError || updateError;
 
   const onSubmit = async (data: User) => {
-    try {
+  try {
+    if (isEdit && initialUser?.id != null) {
+      await updateUser({
+        ...data,
+        id: initialUser.id,
+      }).unwrap();
+    } else {
       await createUser(data).unwrap();
 
-      navigate("/display");
-    } catch (error) {
-      console.error("Error saving user:", error);
-    }
-  };
+      if (getRole() === "User") {
+        navigate("/my-submission");
+      } else {
+        navigate("/");
+      }
+    }   
+  } catch (err) {
+    console.error("Error saving user:", err);
+  }
+};
 
   return (
     <FormProvider {...methods}>
@@ -102,7 +135,7 @@ const UserForm = () => {
             className="space-y-8"
           >
             <div className="space-y-6">
-
+    
 
               {/* Full Name + Email */}
               <div className="grid gap-6 md:grid-cols-2">

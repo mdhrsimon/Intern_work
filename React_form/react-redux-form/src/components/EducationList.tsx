@@ -38,7 +38,7 @@ const EducationList = ({
             <CardContent className="pt-6">
 
               <div className="mb-4">
-                <p className="text-base font-semibold">
+                <p className="te  xt-base font-semibold">
                   Education {index + 1}
                 </p>
               </div>

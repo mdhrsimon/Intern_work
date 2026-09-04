@@ -5,6 +5,7 @@ export interface Education {
 }
 
 export interface User {
+  id?: number | string;
   fullName: string;
   email: string;
   phone: string;
@@ -12,4 +13,13 @@ export interface User {
   address: string;
   gender: string;
   education: Education[];
+  applicationUserId?: string | null;
 }
+ export interface PaginatedUsers{
+  items: User[];
+  page:number;
+  pageSize:number;
+  totalCount: number;
+  totalPages: number;
+  hasMore: boolean;
+ }
