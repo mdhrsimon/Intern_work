@@ -1,61 +1,61 @@
-import {
-  BrowserRouter,
-  Routes,
-  Route,
-} from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
-import FormPage from "./pages/FormPage";
-import ViewUserPage from"./pages/ViewUserPage";
-import EditUserPage from"./pages/EditUserPage";
-import DisplayPage from "./pages/DisplayPage";
-import RegisterPage from "./pages/RegisterPage";
 import LoginPage from "./pages/LoginPage";
+import RegisterPage from "./pages/RegisterPage";
+import AdminDashboard from "./pages/AdminDashboard";
+import StaffDashboard from "./pages/StaffDashboard";
+import StudentDashboard from "./pages/StudentDashboard";
 import RequireAuth from "./components/RequireAuth";
+import FormPage from "./pages/FormPage";
+import DisplayPage from "./pages/DisplayPage";
+import ViewUserPage from "./pages/ViewUserPage";
+import EditUserPage from "./pages/EditUserPage";
 import MySubmissionPage from "./pages/MySubmissionPage";
 
 const App = () => {
   return (
     <BrowserRouter>
       <Routes>
-        <Route  
-          path="/"
-          element={<DisplayPage />}
-        />
+        {/* Home page is the Login page */}
+        <Route path="/" element={<LoginPage />} />
+        <Route path="/login" element={<Navigate to="/" replace />} />
+        <Route path="/register" element={<RegisterPage />} />
 
+        {/* Role Protected Dashboards */}
         <Route
-          path="/form"
-          element={<FormPage />}
-        />
-
-        <Route
-          path="/users/:id"
-          element={<ViewUserPage/>}
-    
-        />
-
-        <Route
-          path="/users/:id/edit"
-          element={<EditUserPage/>}
-        />
-        <Route
-          path="/login"
-          element={<LoginPage/>}
-        />
-        <Route
-          path="/register"
-          element={<RegisterPage/>}
-        />
-        {/* List: Staff + Admin only */}
-        <Route
-          path="/"
+          path="/admin"
           element={
-            <RequireAuth roles={["Staff", "Admin"]}>
-              <DisplayPage />
+            <RequireAuth roles={["Admin"]}>
+              <AdminDashboard />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/staff"
+          element={
+            <RequireAuth roles={["Staff"]}>
+              <StaffDashboard />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/teacher"
+          element={
+            <RequireAuth roles={["Staff"]}>
+              <StaffDashboard />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/student"
+          element={
+            <RequireAuth roles={["Student"]}>
+              <StudentDashboard />
             </RequireAuth>
           }
         />
 
-        {/* Form: any logged-in role */}
+        {/* Form and Management Pages */}
         <Route
           path="/form"
           element={
@@ -64,8 +64,14 @@ const App = () => {
             </RequireAuth>
           }
         />
-
-        {/* View / Edit: Staff + Admin */}
+        <Route
+          path="/students"
+          element={
+            <RequireAuth roles={["Staff", "Admin"]}>
+              <DisplayPage />
+            </RequireAuth>
+          }
+        />
         <Route
           path="/users/:id"
           element={
@@ -74,7 +80,6 @@ const App = () => {
             </RequireAuth>
           }
         />
-
         <Route
           path="/users/:id/edit"
           element={
@@ -86,11 +91,14 @@ const App = () => {
         <Route
           path="/my-submission"
           element={
-            <RequireAuth roles={["User", "Staff", "Admin"]}>
+            <RequireAuth>
               <MySubmissionPage />
             </RequireAuth>
           }
-/>
+        />
+
+        {/* Catch-all redirect to Home */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 import {
   useGetUsersInfiniteQuery,
@@ -7,8 +7,8 @@ import {
   useDeleteUserMutation,
 } from "../api/userApi";
 import type { User } from "../types/user";
-import { loadAuth, clearAuth } from "../lib/authStorage";
 import { canDelete, canEdit } from "../lib/permissions";
+import Navbar from "../components/Navbar";
 
 import {
   Card,
@@ -33,10 +33,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Plus } from "lucide-react";
 
 const DisplayPage = () => {
-  const navigate = useNavigate();
-  const auth = loadAuth();
   const roleCanEdit = canEdit();
   const roleCanDelete = canDelete();
 
@@ -104,11 +103,6 @@ const DisplayPage = () => {
     }
   };
 
-  const handleLogout = () => {
-    clearAuth();
-    navigate("/login");
-  };
-
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white px-4 py-10">
@@ -158,52 +152,28 @@ const DisplayPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white px-4 py-10">
-      <div className="mx-auto max-w-3xl space-y-8">
+    <div className="min-h-screen bg-slate-50">
+      <Navbar />
+
+      <main className="mx-auto max-w-4xl px-4 py-8 space-y-8">
         {/* Header */}
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-slate-200 pb-5">
           <div>
-            <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
-              Submitted Users
+            <h1 className="text-3xl font-bold tracking-tight text-slate-900">
+              Student Directory
             </h1>
-            <p className="mt-1.5 text-base text-slate-500">
+            <p className="mt-1 text-sm text-slate-500">
               {users.length === 0
-                ? "No submissions yet."
-                : `${users.length} loaded`}
-              {auth
-                ? ` · ${auth.email} (${auth.role})`
-                : " · Not logged in"}
+                ? "No student submissions found."
+                : `Showing ${users.length} enrolled student records.`}
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            {auth ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="lg"
-                onClick={handleLogout}
-              >
-                Logout
-              </Button>
-            ) : (
-              <>
-                <Link to="/login">
-                  <Button type="button" variant="outline" size="lg">
-                    Login
-                  </Button>
-                </Link>
-                <Link to="/register">
-                  <Button type="button" variant="outline" size="lg">
-                    Register
-                  </Button>
-                </Link>
-              </>
-            )}
-
+          <div className="flex flex-wrap gap-2.5">
             <Link to="/form">
-              <Button size="lg" className="shadow-sm">
-                Add Another
+              <Button size="sm" className="gap-1.5 bg-indigo-600 hover:bg-indigo-700 shadow-sm">
+                <Plus className="h-4 w-4" />
+                Add Student
               </Button>
             </Link>
 
@@ -372,7 +342,7 @@ const DisplayPage = () => {
             <p className="text-sm text-slate-500">End of list</p>
           )}
         </div>
-      </div>
+      </main>
     </div>
   );
 };

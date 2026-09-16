@@ -1,22 +1,21 @@
 import { loadAuth } from "./authStorage";
 
-export type Role = "User" | "Staff" | "Admin" | null;
+export type Role = "Admin" | "Staff" | "Student" | null;
+
+export const DASHBOARD_PATH = {
+  Admin: "/admin",
+  Staff: "/staff",
+  Student: "/student",
+} as const;
 
 export function getRole(): Role {
   const auth = loadAuth();
   if (!auth?.role) return null;
-  if (
-    auth.role === "Admin" ||
-    auth.role === "Staff" ||
-    auth.role === "User"
-  ) {
-    return auth.role;
-  }
-  return null;
+  return parseRole(auth.role);
 }
 
 export function isLoggedIn() {
-  return !!loadAuth()?.token;
+  return !!loadAuth()?.email && !!getRole();
 }
 
 export function canAccessList(role: Role = getRole()) {
@@ -32,7 +31,17 @@ export function canDelete(role: Role = getRole()) {
 }
 
 export function homePathForRole(role: Role = getRole()) {
-  if (role === "Staff" || role === "Admin") return "/";
-  if (role === "User") return "/my-submission";
-  return "/login";
+  if (role === "Admin") return DASHBOARD_PATH.Admin;
+  if (role === "Staff") return DASHBOARD_PATH.Staff;
+  if (role === "Student") return DASHBOARD_PATH.Student;
+  return "/";
 }
+
+export function parseRole(value: string | undefined | null): Role {
+  if (!value) return null;
+  const normalized = value.trim();
+  if (normalized.toLowerCase() === "admin") return "Admin";
+  if (normalized.toLowerCase() === "staff" || normalized.toLowerCase() === "teacher") return "Staff";
+  if (normalized.toLowerCase() === "student" || normalized.toLowerCase() === "user") return "Student";
+  return null;
+}

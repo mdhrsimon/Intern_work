@@ -100,10 +100,10 @@ const UserForm = ({
     } else {
       await createUser(data).unwrap();
 
-      if (getRole() === "User") {
+      if (getRole() === "Student") {
         navigate("/my-submission");
       } else {
-        navigate("/");
+        navigate("/students");
       }
     }   
   } catch (err) {

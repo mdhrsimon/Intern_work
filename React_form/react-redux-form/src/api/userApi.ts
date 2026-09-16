@@ -1,33 +1,16 @@
-import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
-import type {User, PaginatedUsers } from "../types/user";
+import { createApi } from "@reduxjs/toolkit/query/react";
+import type { User, PaginatedUsers } from "../types/user";
+import { baseQueryWithReauth } from "./baseQueryWithReauth";
 
 const PAGE_SIZE = 5;
+export const STUDENT_DETAILS_PAGE_SIZE = 10;
 
 export const userApi = createApi({
   reducerPath: "userApi",
-
-  baseQuery: fetchBaseQuery({
-  baseUrl: "https://localhost:7028/api/",
-  prepareHeaders: (headers) => {
-    const token = localStorage.getItem("reactform_auth");
-    if (token) {
-      try {
-        const parsed = JSON.parse(token) as { token?: string };
-        if (parsed.token) {
-          headers.set("Authorization", `Bearer ${parsed.token}`);
-        }
-      } catch {
-        /* ignore */
-      }
-    }
-    return headers;
-  },
-}),
-
+  baseQuery: baseQueryWithReauth,
   tagTypes: ["Users"],
 
   endpoints: (builder) => ({
-    // GET /api/users
     getUsers: builder.infiniteQuery<PaginatedUsers, void, number>({
       infiniteQueryOptions: {
         initialPageParam: 1,
@@ -43,10 +26,9 @@ export const userApi = createApi({
       }),
       providesTags: [{ type: "Users", id: "LIST" }],
     }),
-    // GET /api/users/:id
     getUserById: builder.query<User, number | string>({
       query: (id) => `users/${id}`,
-      providesTags:["Users"],
+      providesTags: ["Users"],
     }),
 
     getMySubmission: builder.query<User, void>({
@@ -54,7 +36,16 @@ export const userApi = createApi({
       providesTags: ["Users"],
     }),
 
-    // POST /api/users
+    getStudentDetails: builder.query<PaginatedUsers, { page: number; pageSize?: number }>(
+      {
+        query: ({ page, pageSize = STUDENT_DETAILS_PAGE_SIZE }) => ({
+          url: "users",
+          params: { page, pageSize },
+        }),
+        providesTags: [{ type: "Users", id: "STUDENT_DETAILS" }],
+      }
+    ),
+
     createUser: builder.mutation<User, User>({
       query: (user) => ({
         url: "users",
@@ -65,7 +56,6 @@ export const userApi = createApi({
       invalidatesTags: ["Users"],
     }),
 
-    // PUT /api/Users
     updateUser: builder.mutation<User, User>({
       query: (user) => ({
         url: `users/${user.id}`,
@@ -75,8 +65,6 @@ export const userApi = createApi({
       invalidatesTags: ["Users"],
     }),
 
-
-    // DELETE /api/users
     clearUsers: builder.mutation<void, void>({
       query: () => ({
         url: "users",
@@ -86,21 +74,16 @@ export const userApi = createApi({
       invalidatesTags: ["Users"],
     }),
 
-    // DELETE /api user/:id
-    deleteUser: builder.mutation <void, number | string>({
+    deleteUser: builder.mutation<void, number | string>({
       query: (id) => ({
-        url:`users/${id}`,
-        method: "DELETE"
-
+        url: `users/${id}`,
+        method: "DELETE",
       }),
       invalidatesTags: ["Users"],
-
     }),
-
   }),
 });
 
-// Automatically generated hooks
 export const {
   useGetUsersInfiniteQuery,
   useGetUserByIdQuery,
@@ -109,6 +92,7 @@ export const {
   useClearUsersMutation,
   useDeleteUserMutation,
   useGetMySubmissionQuery,
+  useGetStudentDetailsQuery,
 } = userApi;
 
 export { PAGE_SIZE };
