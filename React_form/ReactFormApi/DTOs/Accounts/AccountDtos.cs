@@ -1,6 +1,6 @@
-using ReactFormApi.Models.Classes;
+using ReactFormApi.DTOs.Classes;
 
-namespace ReactFormApi.Models.Accounts;
+namespace ReactFormApi.DTOs.Accounts;
 
 public class AccountDto
 {
@@ -48,4 +48,34 @@ public class PagedAccountsResult
     public int TotalCount { get; set; }
     public int TotalPages { get; set; }
     public bool HasMore { get; set; }
+}
+
+public class AccountServiceResult
+{
+    public bool Success { get; set; }
+    public int StatusCode { get; set; }
+    public string? Message { get; set; }
+    public IEnumerable<string>? Errors { get; set; }
+    public AccountDto? Account { get; set; }
+
+    public static AccountServiceResult Ok(AccountDto account) => new()
+    {
+        Success = true,
+        StatusCode = 200,
+        Account = account
+    };
+
+    public static AccountServiceResult NoContentResult() => new()
+    {
+        Success = true,
+        StatusCode = 204
+    };
+
+    public static AccountServiceResult Fail(int statusCode, string message, IEnumerable<string>? errors = null) => new()
+    {
+        Success = false,
+        StatusCode = statusCode,
+        Message = message,
+        Errors = errors
+    };
 }

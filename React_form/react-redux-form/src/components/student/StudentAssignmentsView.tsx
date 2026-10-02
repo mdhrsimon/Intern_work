@@ -7,6 +7,9 @@ import {
 import { FileUpload } from "../FileUpload";
 import type { Assignment } from "../../types/assignment";
 import { Button } from "@/components/ui/button";
+import { downloadFile, getAttachmentDownloadUrl, getSubmissionFileDownloadUrl } from "../../utils/file";
+import { formatDate } from "../../utils/date";
+import { StatusBadge } from "../common/StatusBadge";
 import {
   BookOpen,
   Clock,
@@ -58,24 +61,6 @@ export const StudentAssignmentsView = ({ classId }: StudentAssignmentsViewProps)
     }
   };
 
-  const handleDownload = async (url: string, filename: string) => {
-    try {
-      const response = await fetch(url, { credentials: "include" });
-      if (!response.ok) throw new Error("Download failed");
-      const blob = await response.blob();
-      const objectUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = objectUrl;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(objectUrl);
-    } catch (e) {
-      alert("Failed to download file");
-    }
-  };
-
   const handleDeleteFile = async (assignmentId: number, fileId: number) => {
     await deleteFileMutation({ assignmentId, fileId });
     refetch();
@@ -115,7 +100,7 @@ export const StudentAssignmentsView = ({ classId }: StudentAssignmentsViewProps)
                       {assignment.dueDate && (
                         <span className="flex items-center gap-1 text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 font-medium">
                           <Clock className="h-3 w-3" />
-                          Due: {new Date(assignment.dueDate).toLocaleDateString()}
+                          Due: {formatDate(assignment.dueDate)}
                         </span>
                       )}
                       <span>Assigned by: {assignment.createdByName}</span>
@@ -135,7 +120,7 @@ export const StudentAssignmentsView = ({ classId }: StudentAssignmentsViewProps)
                                 variant="ghost" 
                                 size="sm" 
                                 className="h-6 w-6 p-0 text-blue-600 hover:bg-blue-50"
-                                onClick={() => handleDownload(`http://localhost:5070/api/assignments/${assignment.id}/attachments/${file.id}/download`, file.fileName)}
+                                onClick={() => downloadFile(getAttachmentDownloadUrl(assignment.id, file.id), file.fileName)}
                               >
                                 <Download size={14} />
                               </Button>
@@ -146,17 +131,7 @@ export const StudentAssignmentsView = ({ classId }: StudentAssignmentsViewProps)
                     )}
                   </div>
 
-                  <span
-                    className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
-                      isReturned
-                        ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
-                        : isTurnedIn
-                        ? "bg-blue-100 text-blue-800 border border-blue-200"
-                        : "bg-amber-100 text-amber-800 border border-amber-200"
-                    }`}
-                  >
-                    {status}
-                  </span>
+                  <StatusBadge status={status} />
                 </div>
 
                 {/* Returned Feedback Box */}
@@ -189,7 +164,7 @@ export const StudentAssignmentsView = ({ classId }: StudentAssignmentsViewProps)
                                 variant="ghost" 
                                 size="sm" 
                                 className="h-6 w-6 p-0 text-blue-600 hover:bg-blue-50"
-                                onClick={() => handleDownload(`http://localhost:5070/api/assignments/${assignment.id}/submissions/${mySub.id}/files/${file.id}/download`, file.fileName)}
+                                onClick={() => downloadFile(getSubmissionFileDownloadUrl(assignment.id, mySub.id, file.id), file.fileName)}
                               >
                                 <Download size={14} />
                               </Button>

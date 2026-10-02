@@ -11,6 +11,9 @@ import {
 import { FileUpload } from "../FileUpload";
 import type { Assignment, AssignmentSubmission } from "../../types/assignment";
 import { Button } from "@/components/ui/button";
+import { downloadFile, getAttachmentDownloadUrl, getSubmissionFileDownloadUrl } from "../../utils/file";
+import { formatDate } from "../../utils/date";
+import { StatusBadge } from "../common/StatusBadge";
 import {
   BookOpen,
   Plus,
@@ -104,24 +107,6 @@ export const TeacherAssignmentsView = ({ classId }: TeacherAssignmentsViewProps)
     }
   };
 
-  const handleDownload = async (url: string, filename: string) => {
-    try {
-      const response = await fetch(url, { credentials: "include" });
-      if (!response.ok) throw new Error("Download failed");
-      const blob = await response.blob();
-      const objectUrl = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = objectUrl;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(objectUrl);
-    } catch (e) {
-      alert("Failed to download file");
-    }
-  };
-
   const handleDeleteAttachment = async (assignmentId: number, fileId: number) => {
     if (confirm("Are you sure you want to delete this attachment?")) {
       await deleteAttachmentMutation({ assignmentId, fileId });
@@ -162,10 +147,10 @@ export const TeacherAssignmentsView = ({ classId }: TeacherAssignmentsViewProps)
                     {assignment.dueDate && (
                       <span className="flex items-center gap-1 text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 font-medium">
                         <Clock className="h-3 w-3" />
-                        Due: {new Date(assignment.dueDate).toLocaleDateString()}
+                        Due: {formatDate(assignment.dueDate)}
                       </span>
                     )}
-                    <span>Created: {new Date(assignment.createdAt).toLocaleDateString()}</span>
+                    <span>Created: {formatDate(assignment.createdAt)}</span>
                   </div>
                   
                   {/* Attachments Display */}
@@ -182,7 +167,7 @@ export const TeacherAssignmentsView = ({ classId }: TeacherAssignmentsViewProps)
                               variant="ghost" 
                               size="sm" 
                               className="h-6 w-6 p-0 text-blue-600 hover:bg-blue-50"
-                              onClick={() => handleDownload(`http://localhost:5070/api/assignments/${assignment.id}/attachments/${file.id}/download`, file.fileName)}
+                              onClick={() => downloadFile(getAttachmentDownloadUrl(assignment.id, file.id), file.fileName)}
                             >
                               <Download size={14} />
                             </Button>
@@ -388,17 +373,7 @@ const SubmissionsReviewList = ({ assignmentId }: { assignmentId: number }) => {
                   <span className="text-xs font-bold text-slate-900">{sub.studentName}</span>
                   <span className="text-[11px] text-slate-500 ml-2">({sub.studentEmail})</span>
                 </div>
-                <span
-                  className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                    isReturned
-                      ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
-                      : isTurnedIn
-                      ? "bg-blue-100 text-blue-800 border border-blue-200"
-                      : "bg-slate-100 text-slate-600 border border-slate-200"
-                  }`}
-                >
-                  {sub.status}
-                </span>
+                <StatusBadge status={sub.status} />
               </div>
 
               {sub.submittedText ? (
@@ -422,18 +397,7 @@ const SubmissionsReviewList = ({ assignmentId }: { assignmentId: number }) => {
                           variant="ghost" 
                           size="sm" 
                           className="h-6 w-6 p-0 text-blue-600 hover:bg-blue-50"
-                          onClick={() => {
-                            fetch(`http://localhost:5070/api/assignments/${assignmentId}/submissions/${sub.id}/files/${file.id}/download`, { credentials: "include" })
-                              .then(res => res.blob())
-                              .then(blob => {
-                                const url = window.URL.createObjectURL(blob);
-                                const a = document.createElement("a");
-                                a.href = url;
-                                a.download = file.fileName;
-                                a.click();
-                                window.URL.revokeObjectURL(url);
-                              });
-                          }}
+                          onClick={() => downloadFile(getSubmissionFileDownloadUrl(assignmentId, sub.id, file.id), file.fileName)}
                         >
                           <Download size={14} />
                         </Button>

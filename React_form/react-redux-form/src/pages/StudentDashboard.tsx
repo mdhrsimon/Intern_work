@@ -6,17 +6,9 @@ import { Navbar } from "../components/Navbar";
 import { StudentAssignmentsView } from "../components/student/StudentAssignmentsView";
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
   GraduationCap,
   FileText,
   UserCheck,
-  ArrowRight,
   Layers,
   BookOpen,
   Hash,
@@ -24,7 +16,7 @@ import {
 } from "lucide-react";
 
 const StudentDashboard = () => {
-  const { email, fullName } = useAuthSession();
+  const { fullName } = useAuthSession();
   const { data: myClasses, isLoading: isLoadingClasses, refetch } = useGetMyClassesQuery();
 
   const [selectedClassId, setSelectedClassId] = useState<number | null>(null);

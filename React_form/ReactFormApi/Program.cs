@@ -5,7 +5,10 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
+using ReactFormApi.Authorization;
+using ReactFormApi.Constants;
 using ReactFormApi.Models;
+using ReactFormApi.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -52,6 +55,19 @@ builder.Services
     .AddEntityFrameworkStores<AppDbContext>()
     .AddDefaultTokenProviders();
 
+// Register application and domain services via Dependency Injection
+builder.Services.AddScoped<CookieService>();
+builder.Services.AddScoped<JwtTokenService>();
+builder.Services.AddScoped<RefreshTokenService>();
+builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<ClassAuthorizationService>();
+builder.Services.AddScoped<AccountService>();
+builder.Services.AddScoped<ClassService>();
+builder.Services.AddScoped<FileStorageService>();
+builder.Services.AddScoped<AssignmentFileService>();
+builder.Services.AddScoped<AssignmentService>();
+builder.Services.AddScoped<UserService>();
+
 var jwtKey = builder.Configuration["Jwt:Key"]!;
 builder.Services
     .AddAuthentication(options =>
@@ -78,7 +94,7 @@ builder.Services
             OnMessageReceived = context =>
             {
                 if (string.IsNullOrEmpty(context.Token)
-                    && context.Request.Cookies.TryGetValue("access_token", out var cookieToken))
+                    && context.Request.Cookies.TryGetValue(AuthConstants.AccessTokenCookie, out var cookieToken))
                 {
                     context.Token = cookieToken;
                 }
@@ -109,7 +125,6 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-
 
 app.UseCors("ReactPolicy");
 app.UseAuthentication();

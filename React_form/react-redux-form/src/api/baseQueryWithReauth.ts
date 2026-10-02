@@ -7,9 +7,10 @@ import type {
 import { setCredentials, logOut } from "../redux/authSlice";
 import type { AuthResponse } from "../types/auth";
 import { parseRole } from "../lib/permissions";
+import { API_BASE_URL } from "../constants/api";
 
 const rawBaseQuery = fetchBaseQuery({
-  baseUrl: "http://localhost:5070/api/",
+  baseUrl: API_BASE_URL,
   credentials: "include",
 });
 

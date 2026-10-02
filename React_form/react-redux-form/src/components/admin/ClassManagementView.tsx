@@ -7,6 +7,7 @@ import type { ClassChannel } from "../../types/class";
 import { CreateClassModal } from "./CreateClassModal";
 import { EditClassModal } from "./EditClassModal";
 import { ConfirmationModal } from "./ConfirmationModal";
+import { Pagination } from "../common/Pagination";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -19,8 +20,6 @@ import {
   GraduationCap,
   RefreshCw,
   Hash,
-  ChevronLeft,
-  ChevronRight,
 } from "lucide-react";
 
 export const ClassManagementView: React.FC = () => {
@@ -203,38 +202,14 @@ export const ClassManagementView: React.FC = () => {
       )}
 
       {/* Pagination Controls */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-6 py-3 text-xs text-slate-600">
-          <div>
-            Showing <span className="font-semibold text-slate-900">{classes.length}</span> of{" "}
-            <span className="font-semibold text-slate-900">{totalCount}</span> classes
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage((p) => Math.max(p - 1, 1))}
-              disabled={page <= 1 || isLoading}
-              className="h-8 w-8 p-0"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <span className="font-medium text-slate-700">
-              Page {page} of {totalPages}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
-              disabled={page >= totalPages || isLoading}
-              className="h-8 w-8 p-0"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      )}
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        totalCount={totalCount}
+        itemLabel="classes"
+        onPageChange={setPage}
+        disabled={isLoading || isFetching}
+      />
 
       {/* Modals */}
       <CreateClassModal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} />

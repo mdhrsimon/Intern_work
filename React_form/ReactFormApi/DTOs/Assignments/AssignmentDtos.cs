@@ -1,4 +1,4 @@
-namespace ReactFormApi.Models.Assignments;
+namespace ReactFormApi.DTOs.Assignments;
 
 public class CreateAssignmentRequest
 {
@@ -45,7 +45,7 @@ public class AssignmentDto
     // Student specific context (if student is fetching)
     public AssignmentSubmissionDto? MySubmission { get; set; }
 
-    public List<AssignmentAttachmentDto> Attachments { get; set; } = new List<AssignmentAttachmentDto>();
+    public List<AssignmentAttachmentDto> Attachments { get; set; } = new();
 }
 
 public class AssignmentSubmissionDto
@@ -62,7 +62,7 @@ public class AssignmentSubmissionDto
     public DateTime? SubmittedAt { get; set; }
     public DateTime? ReturnedAt { get; set; }
 
-    public List<SubmissionFileDto> Files { get; set; } = new List<SubmissionFileDto>();
+    public List<SubmissionFileDto> Files { get; set; } = new();
 }
 
 public class AssignmentAttachmentDto
@@ -81,4 +81,86 @@ public class SubmissionFileDto
     public string ContentType { get; set; } = string.Empty;
     public long FileSize { get; set; }
     public DateTime UploadedAt { get; set; }
+}
+
+public class AssignmentServiceResult<T>
+{
+    public bool Success { get; set; }
+    public int StatusCode { get; set; }
+    public string? Message { get; set; }
+    public T? Data { get; set; }
+
+    public static AssignmentServiceResult<T> Ok(T data) => new()
+    {
+        Success = true,
+        StatusCode = 200,
+        Data = data
+    };
+
+    public static AssignmentServiceResult<T> NoContentResult() => new()
+    {
+        Success = true,
+        StatusCode = 204
+    };
+
+    public static AssignmentServiceResult<T> Fail(int statusCode, string message) => new()
+    {
+        Success = false,
+        StatusCode = statusCode,
+        Message = message
+    };
+}
+
+public class FileServiceResult<T>
+{
+    public bool Success { get; set; }
+    public int StatusCode { get; set; }
+    public string? Message { get; set; }
+    public T? Data { get; set; }
+
+    public static FileServiceResult<T> Ok(T data) => new()
+    {
+        Success = true,
+        StatusCode = 200,
+        Data = data
+    };
+
+    public static FileServiceResult<T> NoContentResult() => new()
+    {
+        Success = true,
+        StatusCode = 204
+    };
+
+    public static FileServiceResult<T> Fail(int statusCode, string message) => new()
+    {
+        Success = false,
+        StatusCode = statusCode,
+        Message = message
+    };
+}
+
+public class FileDownloadResult
+{
+    public bool Success { get; set; }
+    public int StatusCode { get; set; }
+    public string? Message { get; set; }
+    public string FilePath { get; set; } = string.Empty;
+    public string ContentType { get; set; } = string.Empty;
+    public string FileName { get; set; } = string.Empty;
+
+    public static FileDownloadResult Ok(string filePath, string contentType, string fileName) => new()
+    {
+        Success = true,
+        StatusCode = 200,
+        FilePath = filePath,
+        ContentType = contentType,
+        FileName = fileName
+    };
+
+    public static FileDownloadResult Fail(int statusCode, string message) => new()
+    {
+        Success = false,
+        StatusCode = statusCode,
+        Message = message
+    };
 }

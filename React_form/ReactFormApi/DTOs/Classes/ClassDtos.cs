@@ -1,4 +1,4 @@
-namespace ReactFormApi.Models.Classes;
+namespace ReactFormApi.DTOs.Classes;
 
 public class ClassChannelDto
 {
@@ -85,4 +85,49 @@ public class PolicyCheckResult
     public string UserRole { get; set; } = string.Empty;
     public string? RoleInClass { get; set; }
     public string ClassName { get; set; } = string.Empty;
+}
+
+public class ClassServiceResult
+{
+    public bool Success { get; set; }
+    public int StatusCode { get; set; }
+    public string? Message { get; set; }
+    public object? ErrorDetails { get; set; }
+    public ClassWithMembersDto? ClassDetails { get; set; }
+
+    public static ClassServiceResult Ok(ClassWithMembersDto details) => new()
+    {
+        Success = true,
+        StatusCode = 200,
+        ClassDetails = details
+    };
+
+    public static ClassServiceResult Fail(int statusCode, string message, object? errorDetails = null) => new()
+    {
+        Success = false,
+        StatusCode = statusCode,
+        Message = message,
+        ErrorDetails = errorDetails
+    };
+}
+
+public class AssignMemberResult
+{
+    public bool Success { get; set; }
+    public int StatusCode { get; set; }
+    public string Message { get; set; } = string.Empty;
+
+    public static AssignMemberResult Ok(string message) => new()
+    {
+        Success = true,
+        StatusCode = 200,
+        Message = message
+    };
+
+    public static AssignMemberResult Fail(int statusCode, string message) => new()
+    {
+        Success = false,
+        StatusCode = statusCode,
+        Message = message
+    };
 }

@@ -1,10 +1,5 @@
 import axios from "axios";
 import {
-  FileAudio,
-  FileIcon,
-  FileImage,
-  FileText,
-  FileVideo,
   Plus,
   Trash2,
   Upload,
@@ -14,6 +9,8 @@ import {
 } from "lucide-react";
 import { useRef, useState } from "react";
 import type { ChangeEvent } from "react";
+import { FILE_CONSTRAINTS } from "../constants/api";
+import { formatFileSize, getFileIcon } from "../utils/file";
 
 export type UploadedFileResult = {
   id: number;
@@ -39,9 +36,9 @@ interface FileUploadProps {
   disabled?: boolean;
 }
 
-const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB
-const MAX_FILES = 10;
-const ALLOWED_EXTS = [".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png", ".txt", ".zip"];
+const MAX_FILE_SIZE = FILE_CONSTRAINTS.MAX_FILE_SIZE;
+const MAX_FILES = FILE_CONSTRAINTS.MAX_FILES;
+const ALLOWED_EXTS = FILE_CONSTRAINTS.ALLOWED_EXTENSIONS;
 
 export function FileUpload({ uploadUrl, onUploadSuccess, onDeleteFile, disabled }: FileUploadProps) {
   const [files, setFiles] = useState<FileWithProgress[]>([]);
@@ -364,20 +361,3 @@ function ProgressBar({ progress }: { progress: number }) {
     </div>
   );
 }
-
-const getFileIcon = (mimeOrName: string) => {
-  const str = mimeOrName.toLowerCase();
-  if (str.startsWith("image/") || str.endsWith(".jpg") || str.endsWith(".jpeg") || str.endsWith(".png")) return FileImage;
-  if (str.startsWith("video/")) return FileVideo;
-  if (str.startsWith("audio/")) return FileAudio;
-  if (str === "application/pdf" || str.endsWith(".pdf") || str.endsWith(".doc") || str.endsWith(".docx") || str.endsWith(".txt")) return FileText;
-  return FileIcon;
-};
-
-const formatFileSize = (bytes: number) => {
-  if (bytes === 0) return "0 B";
-  const k = 1024;
-  const sizes = ["B", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
-};
