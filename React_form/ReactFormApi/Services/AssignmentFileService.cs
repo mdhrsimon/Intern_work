@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using ReactFormApi.Authorization;
 using ReactFormApi.Constants;
@@ -14,15 +15,21 @@ public class AssignmentFileService
     private readonly AppDbContext _context;
     private readonly FileStorageService _fileStorageService;
     private readonly ClassAuthorizationService _authorizationService;
+    private readonly INotificationService _notificationService;
+    private readonly UserManager<ApplicationUser> _userManager;
 
     public AssignmentFileService(
         AppDbContext context,
         FileStorageService fileStorageService,
-        ClassAuthorizationService authorizationService)
+        ClassAuthorizationService authorizationService,
+        INotificationService notificationService,
+        UserManager<ApplicationUser> userManager)
     {
         _context = context;
         _fileStorageService = fileStorageService;
         _authorizationService = authorizationService;
+        _notificationService = notificationService;
+        _userManager = userManager;
     }
 
     public async Task<FileServiceResult<AssignmentAttachmentDto>> UploadAttachmentAsync(
@@ -193,6 +200,20 @@ public class AssignmentFileService
 
         _context.SubmissionFiles.Add(submissionFile);
         await _context.SaveChangesAsync();
+
+        if (submission.Status == "Turned In" || submission.SubmittedAt != null)
+        {
+            var student = await _userManager.FindByIdAsync(currentUserId);
+            var studentName = student?.FullName ?? student?.UserName ?? "A student";
+            await _notificationService.NotifyClassEnrolledUsersAsync(
+                assignment.ClassChannelId,
+                RoleConstants.Staff,
+                NotificationType.AssignmentResubmitted,
+                "Submission Files Updated",
+                $"{studentName} updated submission files for '{assignment.Title}'.",
+                assignment.Id,
+                currentUserId);
+        }
 
         return FileServiceResult<SubmissionFileDto>.Ok(new SubmissionFileDto
         {

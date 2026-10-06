@@ -4,6 +4,7 @@ import { useLogoutMutation, authApi } from "../api/authApi";
 import { userApi } from "../api/userApi";
 import { logOut } from "../redux/authSlice";
 import { useAuthSession } from "../lib/useAuthSession";
+import { NotificationBell } from "./NotificationBell";
 import { Button } from "./ui/button";
 import {
   GraduationCap,
@@ -129,6 +130,8 @@ export const Navbar = () => {
         </div>
 
         <div className="flex items-center gap-3">
+          <NotificationBell />
+
           <div className="hidden sm:flex items-center gap-2.5 rounded-full border border-slate-200 bg-slate-50/70 py-1 pl-3 pr-1.5 text-sm">
             <div className="flex items-center gap-2">
               <UserIcon className="h-4 w-4 text-slate-400" />

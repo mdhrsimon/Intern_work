@@ -15,19 +15,22 @@ public class AuthService
     private readonly JwtTokenService _jwtTokenService;
     private readonly RefreshTokenService _refreshTokenService;
     private readonly CookieService _cookieService;
+    private readonly INotificationService _notificationService;
 
     public AuthService(
         UserManager<ApplicationUser> userManager,
         RoleManager<IdentityRole> roleManager,
         JwtTokenService jwtTokenService,
         RefreshTokenService refreshTokenService,
-        CookieService cookieService)
+        CookieService cookieService,
+        INotificationService notificationService)
     {
         _userManager = userManager;
         _roleManager = roleManager;
         _jwtTokenService = jwtTokenService;
         _refreshTokenService = refreshTokenService;
         _cookieService = cookieService;
+        _notificationService = notificationService;
     }
 
     public async Task<AuthServiceResult> RegisterAsync(RegisterRequest request, HttpResponse response)
@@ -62,6 +65,14 @@ public class AuthService
         }
 
         await _userManager.AddToRoleAsync(user, role);
+
+        await _notificationService.NotifyAllAdminsAsync(
+            NotificationType.UserRegistered,
+            "New User Registered",
+            $"{user.FullName ?? user.Email} has registered with role {role}.",
+            null,
+            null,
+            user.Id);
 
         var authResponse = await IssueAuthTokensAsync(user, response);
         return AuthServiceResult.Ok(authResponse);

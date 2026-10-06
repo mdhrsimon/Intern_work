@@ -67,6 +67,9 @@ builder.Services.AddScoped<FileStorageService>();
 builder.Services.AddScoped<AssignmentFileService>();
 builder.Services.AddScoped<AssignmentService>();
 builder.Services.AddScoped<UserService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddHostedService<AssignmentDueDateReminderService>();
+builder.Services.AddSignalR();
 
 var jwtKey = builder.Configuration["Jwt:Key"]!;
 builder.Services
@@ -93,10 +96,19 @@ builder.Services
         {
             OnMessageReceived = context =>
             {
+                // Read JWT from HttpOnly cookie
                 if (string.IsNullOrEmpty(context.Token)
                     && context.Request.Cookies.TryGetValue(AuthConstants.AccessTokenCookie, out var cookieToken))
                 {
                     context.Token = cookieToken;
+                }
+
+                // Also support access_token query param for SignalR WebSockets/SSE fallback
+                var path = context.HttpContext.Request.Path;
+                var accessToken = context.Request.Query["access_token"];
+                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+                {
+                    context.Token = accessToken;
                 }
 
                 return Task.CompletedTask;
@@ -131,6 +143,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<ReactFormApi.Hubs.NotificationHub>("/hubs/notifications");
 
 using (var scope = app.Services.CreateScope())
 {

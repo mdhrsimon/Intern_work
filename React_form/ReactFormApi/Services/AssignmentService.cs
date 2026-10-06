@@ -13,15 +13,18 @@ public class AssignmentService
     private readonly AppDbContext _context;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly ClassAuthorizationService _authorizationService;
+    private readonly INotificationService _notificationService;
 
     public AssignmentService(
         AppDbContext context,
         UserManager<ApplicationUser> userManager,
-        ClassAuthorizationService authorizationService)
+        ClassAuthorizationService authorizationService,
+        INotificationService notificationService)
     {
         _context = context;
         _userManager = userManager;
         _authorizationService = authorizationService;
+        _notificationService = notificationService;
     }
 
     public async Task<AssignmentServiceResult<List<AssignmentDto>>> GetAssignmentsByClassAsync(
@@ -124,6 +127,15 @@ public class AssignmentService
         _context.Assignments.Add(assignment);
         await _context.SaveChangesAsync();
 
+        await _notificationService.NotifyClassEnrolledUsersAsync(
+            assignment.ClassChannelId,
+            RoleConstants.Student,
+            NotificationType.AssignmentPosted,
+            "New Assignment Posted",
+            $"New assignment '{assignment.Title}' was posted in your class.",
+            assignment.Id,
+            currentUserId);
+
         var teacher = await _userManager.FindByIdAsync(currentUserId);
 
         return AssignmentServiceResult<AssignmentDto>.Ok(new AssignmentDto
@@ -165,6 +177,15 @@ public class AssignmentService
         assignment.DueDate = request.DueDate;
 
         await _context.SaveChangesAsync();
+
+        await _notificationService.NotifyClassEnrolledUsersAsync(
+            assignment.ClassChannelId,
+            RoleConstants.Student,
+            NotificationType.AssignmentUpdated,
+            "Assignment Updated",
+            $"Assignment '{assignment.Title}' details or due date have been updated.",
+            assignment.Id,
+            currentUserId);
 
         return AssignmentServiceResult<object>.Ok(new { message = "Assignment updated successfully.", assignmentId = id });
     }
@@ -209,6 +230,8 @@ public class AssignmentService
         var submission = await _context.AssignmentSubmissions
             .FirstOrDefaultAsync(s => s.AssignmentId == id && s.StudentUserId == currentUserId);
 
+        var isResubmission = submission != null;
+
         if (submission == null)
         {
             submission = new AssignmentSubmission
@@ -231,6 +254,21 @@ public class AssignmentService
         await _context.SaveChangesAsync();
 
         var student = await _userManager.FindByIdAsync(currentUserId);
+        var studentName = student?.FullName ?? student?.UserName ?? "A student";
+        var notifType = isResubmission ? NotificationType.AssignmentResubmitted : NotificationType.AssignmentSubmitted;
+        var notifTitle = isResubmission ? "Assignment Resubmitted" : "Assignment Submitted";
+        var notifMsg = isResubmission
+            ? $"{studentName} resubmitted '{assignment.Title}'."
+            : $"{studentName} submitted '{assignment.Title}'.";
+
+        await _notificationService.NotifyClassEnrolledUsersAsync(
+            assignment.ClassChannelId,
+            RoleConstants.Staff,
+            notifType,
+            notifTitle,
+            notifMsg,
+            assignment.Id,
+            currentUserId);
 
         return AssignmentServiceResult<AssignmentSubmissionDto>.Ok(new AssignmentSubmissionDto
         {
@@ -358,6 +396,15 @@ public class AssignmentService
         submission.ReturnedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
+
+        await _notificationService.CreateAndSendNotificationAsync(
+            submission.StudentUserId,
+            NotificationType.AssignmentReturned,
+            $"Assignment Graded: {assignment.Title}",
+            $"Your submission for '{assignment.Title}' was returned with grade: {submission.Grade ?? "Completed"}.",
+            assignment.ClassChannelId,
+            assignment.Id,
+            currentUserId);
 
         return AssignmentServiceResult<AssignmentSubmissionDto>.Ok(new AssignmentSubmissionDto
         {

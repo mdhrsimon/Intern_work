@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { useAuthSession } from "../lib/useAuthSession";
 import { Navbar } from "../components/Navbar";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,22 @@ type AdminTab = "users" | "classes" | "assignments" | "students";
 
 const AdminDashboard = () => {
   const { fullName } = useAuthSession();
-  const [activeTab, setActiveTab] = useState<AdminTab>("users");
+  const [searchParams] = useSearchParams();
+  const urlTab = searchParams.get("tab");
+  const urlClassId = searchParams.get("classId");
+
+  const [activeTab, setActiveTab] = useState<AdminTab>(() => {
+    if (urlTab === "accounts" || urlTab === "users") return "users";
+    if (urlClassId || urlTab === "classes") return "classes";
+    if (urlTab === "assignments") return "assignments";
+    return "users";
+  });
+
+  useEffect(() => {
+    if (urlTab === "accounts" || urlTab === "users") setActiveTab("users");
+    else if (urlClassId || urlTab === "classes") setActiveTab("classes");
+    else if (urlTab === "assignments") setActiveTab("assignments");
+  }, [urlTab, urlClassId]);
 
   return (
     <div className="min-h-screen bg-slate-50">

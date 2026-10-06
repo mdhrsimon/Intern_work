@@ -27,6 +27,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<AssignmentAttachment> AssignmentAttachments { get; set; }
     public DbSet<SubmissionFile> SubmissionFiles { get; set; }
 
+    // Notifications
+    public DbSet<Notification> Notifications { get; set; }
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -100,6 +103,19 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                 .WithMany(s => s.Files)
                 .HasForeignKey(f => f.AssignmentSubmissionId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Notification configuration
+        builder.Entity<Notification>(entity =>
+        {
+            entity.HasKey(n => n.Id);
+
+            entity.HasOne(n => n.Recipient)
+                .WithMany()
+                .HasForeignKey(n => n.RecipientId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(n => new { n.RecipientId, n.IsRead, n.CreatedAt });
         });
     }
 }

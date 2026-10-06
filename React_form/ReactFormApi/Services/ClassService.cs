@@ -11,11 +11,16 @@ public class ClassService
 {
     private readonly AppDbContext _context;
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly INotificationService _notificationService;
 
-    public ClassService(AppDbContext context, UserManager<ApplicationUser> userManager)
+    public ClassService(
+        AppDbContext context,
+        UserManager<ApplicationUser> userManager,
+        INotificationService notificationService)
     {
         _context = context;
         _userManager = userManager;
+        _notificationService = notificationService;
     }
 
     public async Task<PagedClassesResult> GetClassesAsync(
@@ -174,6 +179,12 @@ public class ClassService
         _context.ClassChannels.Add(classChannel);
         await _context.SaveChangesAsync();
 
+        await _notificationService.NotifyAllAdminsAsync(
+            NotificationType.ClassCreated,
+            "Class Created",
+            $"Class '{classChannel.Name}' has been created.",
+            classChannel.Id);
+
         return new ClassChannelDto
         {
             Id = classChannel.Id,
@@ -219,8 +230,17 @@ public class ClassService
         var cls = await _context.ClassChannels.FindAsync(id);
         if (cls == null) return false;
 
+        var className = cls.Name;
+
         _context.ClassChannels.Remove(cls);
         await _context.SaveChangesAsync();
+
+        await _notificationService.NotifyAllAdminsAsync(
+            NotificationType.ClassDeleted,
+            "Class Deleted",
+            $"Class '{className}' has been deleted.",
+            id);
+
         return true;
     }
 
@@ -259,19 +279,52 @@ public class ClassService
         _context.ClassEnrollments.Add(enrollment);
         await _context.SaveChangesAsync();
 
+        var roleDisplay = roleInClass == RoleConstants.Staff ? "Teacher" : "Student";
+        await _notificationService.CreateAndSendNotificationAsync(
+            user.Id,
+            NotificationType.ClassEnrollmentAdded,
+            $"Enrolled in {cls.Name}",
+            $"You have been assigned to class '{cls.Name}' as a {roleDisplay}.",
+            cls.Id);
+
+        await _notificationService.NotifyAllAdminsAsync(
+            NotificationType.ClassEnrollmentAdded,
+            "Class Enrollment Updated",
+            $"{user.FullName ?? user.Email} was assigned as {roleDisplay} in '{cls.Name}'.",
+            cls.Id);
+
         return AssignMemberResult.Ok($"User {user.FullName ?? user.Email} successfully assigned to {cls.Name}.");
     }
 
     public async Task<bool> RemoveMemberAsync(int id, string accountId)
     {
         var enrollment = await _context.ClassEnrollments
+            .Include(e => e.ClassChannel)
+            .Include(e => e.ApplicationUser)
             .FirstOrDefaultAsync(e => e.ClassChannelId == id && e.ApplicationUserId == accountId);
 
         if (enrollment == null)
             return false;
 
+        var className = enrollment.ClassChannel?.Name ?? "a class";
+        var userName = enrollment.ApplicationUser?.FullName ?? enrollment.ApplicationUser?.Email ?? "A member";
+
         _context.ClassEnrollments.Remove(enrollment);
         await _context.SaveChangesAsync();
+
+        await _notificationService.CreateAndSendNotificationAsync(
+            accountId,
+            NotificationType.ClassEnrollmentRemoved,
+            $"Removed from {className}",
+            $"You have been removed from the class '{className}'.",
+            id);
+
+        await _notificationService.NotifyAllAdminsAsync(
+            NotificationType.ClassEnrollmentRemoved,
+            "Class Member Removed",
+            $"{userName} was removed from the class '{className}'.",
+            id);
+
         return true;
     }
 }

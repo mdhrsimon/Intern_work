@@ -13,15 +13,18 @@ public class AccountService
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly RoleManager<IdentityRole> _roleManager;
     private readonly AppDbContext _context;
+    private readonly INotificationService _notificationService;
 
     public AccountService(
         UserManager<ApplicationUser> userManager,
         RoleManager<IdentityRole> roleManager,
-        AppDbContext context)
+        AppDbContext context,
+        INotificationService notificationService)
     {
         _userManager = userManager;
         _roleManager = roleManager;
         _context = context;
+        _notificationService = notificationService;
     }
 
     public async Task<PagedAccountsResult> GetAccountsAsync(
@@ -154,6 +157,14 @@ public class AccountService
 
         await _userManager.AddToRoleAsync(user, role);
 
+        await _notificationService.NotifyAllAdminsAsync(
+            NotificationType.UserRegistered,
+            "New User Created",
+            $"{user.FullName ?? user.Email} was created with role {role}.",
+            null,
+            null,
+            null);
+
         return AccountServiceResult.Ok(MapToDto(user, role, new List<AssignedClassSummaryDto>()));
     }
 
@@ -176,6 +187,7 @@ public class AccountService
         if (!string.IsNullOrWhiteSpace(request.FullName))
             user.FullName = request.FullName.Trim();
 
+        var previousIsActive = user.IsActive;
         if (request.IsActive.HasValue)
             user.IsActive = request.IsActive.Value;
 
@@ -188,6 +200,17 @@ public class AccountService
         }
 
         await _userManager.UpdateAsync(user);
+
+        if (request.IsActive.HasValue && request.IsActive.Value != previousIsActive)
+        {
+            await _notificationService.NotifyAllAdminsAsync(
+                NotificationType.UserStatusChanged,
+                $"Account {(request.IsActive.Value ? "Activated" : "Deactivated")}",
+                $"Account for {user.FullName ?? user.Email} was {(request.IsActive.Value ? "activated" : "deactivated")}.",
+                null,
+                null,
+                currentUserId);
+        }
 
         if (!string.IsNullOrWhiteSpace(request.Role))
         {
@@ -260,6 +283,14 @@ public class AccountService
 
         user.IsActive = isActive;
         await _userManager.UpdateAsync(user);
+
+        await _notificationService.NotifyAllAdminsAsync(
+            NotificationType.UserStatusChanged,
+            $"Account {(isActive ? "Activated" : "Deactivated")}",
+            $"Account for {user.FullName ?? user.Email} was {(isActive ? "activated" : "deactivated")}.",
+            null,
+            null,
+            currentUserId);
 
         var roles = await _userManager.GetRolesAsync(user);
         var role = RoleHelper.GetPrimaryRole(roles);

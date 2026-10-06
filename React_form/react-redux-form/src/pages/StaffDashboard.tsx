@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useAuthSession } from "../lib/useAuthSession";
 import { useGetMyClassesQuery, useGetClassByIdQuery } from "../api/classApi";
 import { Navbar } from "../components/Navbar";
@@ -15,16 +15,31 @@ import {
   ShieldAlert,
   Hash,
   RefreshCw,
+  AlertCircle,
 } from "lucide-react";
 
 const StaffDashboard = () => {
   const { fullName } = useAuthSession();
+  const [searchParams] = useSearchParams();
+  const urlClassIdParam = searchParams.get("classId");
+  const urlClassId = urlClassIdParam ? parseInt(urlClassIdParam, 10) : null;
+
   const { data: myClasses, isLoading: isLoadingClasses, refetch } = useGetMyClassesQuery();
 
   const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<"assignments" | "students">("assignments");
 
-  const activeClassId = selectedClassId ?? (myClasses && myClasses.length > 0 ? myClasses[0].id : null);
+  const activeClassId =
+    selectedClassId ??
+    (urlClassId && myClasses?.some((c) => c.id === urlClassId)
+      ? urlClassId
+      : myClasses && myClasses.length > 0
+      ? myClasses[0].id
+      : null);
+
+  const isTargetUnavailable = Boolean(
+    urlClassId && !isLoadingClasses && myClasses && !myClasses.some((c) => c.id === urlClassId)
+  );
 
   const {
     data: classDetails,
@@ -71,6 +86,15 @@ const StaffDashboard = () => {
             </div>
           </div>
         </div>
+
+        {isTargetUnavailable && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-800 flex items-center gap-3">
+            <AlertCircle className="h-5 w-5 text-amber-600 shrink-0" />
+            <p className="text-sm font-medium">
+              The requested class or assignment is no longer available.
+            </p>
+          </div>
+        )}
 
         {/* Assigned Classes Section */}
         <div className="space-y-4">
