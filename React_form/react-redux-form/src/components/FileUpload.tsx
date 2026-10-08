@@ -11,6 +11,8 @@ import { useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import { FILE_CONSTRAINTS } from "../constants/api";
 import { formatFileSize, getFileIcon } from "../utils/file";
+import { getApiErrorMessage } from "../utils/getApiErrorMessage";
+import { useNotificationToast } from "../context/NotificationToastContext";
 
 export type UploadedFileResult = {
   id: number;
@@ -41,6 +43,7 @@ const MAX_FILES = FILE_CONSTRAINTS.MAX_FILES;
 const ALLOWED_EXTS = FILE_CONSTRAINTS.ALLOWED_EXTENSIONS;
 
 export function FileUpload({ uploadUrl, onUploadSuccess, onDeleteFile, disabled }: FileUploadProps) {
+  const { showNotificationToast } = useNotificationToast();
   const [files, setFiles] = useState<FileWithProgress[]>([]);
   const [uploading, setUploading] = useState(false);
   const [globalError, setGlobalError] = useState("");
@@ -128,11 +131,11 @@ export function FileUpload({ uploadUrl, onUploadSuccess, onDeleteFile, disabled 
           )
         );
         anySuccess = true;
-      } catch (error: any) {
+      } catch (error: unknown) {
         setFiles((prev) =>
           prev.map((f) =>
             f.localId === fileWithProgress.localId
-              ? { ...f, error: error.response?.data?.message || "Upload failed" }
+              ? { ...f, error: getApiErrorMessage(error, "Upload failed") }
               : f
           )
         );
@@ -153,8 +156,19 @@ export function FileUpload({ uploadUrl, onUploadSuccess, onDeleteFile, disabled 
     if (fileToRemove?.uploaded && fileToRemove.serverId && onDeleteFile) {
       try {
         await onDeleteFile(fileToRemove.serverId);
-      } catch (err) {
-        alert("Failed to delete file from server.");
+      } catch (err: unknown) {
+        showNotificationToast({
+          id: -1,
+          recipientId: "",
+          type: "General",
+          title: "Delete Failed",
+          message: getApiErrorMessage(err, "Failed to delete file from server."),
+          classId: null,
+          assignmentId: null,
+          isRead: false,
+          createdAt: new Date().toISOString(),
+          readAt: null,
+        });
         return;
       }
     }

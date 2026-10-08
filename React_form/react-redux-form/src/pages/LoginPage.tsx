@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { useDispatch } from "react-redux";
+import { useAppDispatch } from "../redux/hooks";
 import { useLoginMutation } from "../api/authApi";
 import { setCredentials } from "../redux/authSlice";
 import { parseRole, homePathForRole, isLoggedIn, getRole } from "../lib/permissions";
+import { getApiErrorMessage } from "../utils/getApiErrorMessage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,7 +29,7 @@ import {
 const LoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -90,9 +91,8 @@ const LoginPage = () => {
 
       navigate(destination, { replace: true });
     } catch (err: unknown) {
-      const errorObj = err as { data?: { message?: string } };
       setValidationError(
-        errorObj?.data?.message || "Invalid email or password. Please try again."
+        getApiErrorMessage(err, "Invalid email or password. Please try again.")
       );
     }
   };

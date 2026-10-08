@@ -5,8 +5,9 @@ import {
   useToggleActiveMutation,
   useDeleteAccountMutation,
 } from "../../api/accountApi";
-import { useAuthSession } from "../../lib/useAuthSession";
+import { useAuthSession } from "../../hooks/useAuthSession";
 import type { AccountUser, AccountRole } from "../../types/account";
+import { ROLES } from "../../constants/roles";
 import { ViewUserModal } from "./ViewUserModal";
 import { CreateUserModal } from "./CreateUserModal";
 import { EditUserModal } from "./EditUserModal";
@@ -94,7 +95,16 @@ export const UserManagementView: React.FC = () => {
   const handleInitiateToggleActive = (user: AccountUser) => {
     const isSelf = user.email.toLowerCase() === currentAdminEmail?.toLowerCase();
     if (isSelf && user.isActive) {
-      alert("You cannot deactivate your own administrative session.");
+      setConfirmConfig({
+        isOpen: true,
+        title: "Action Not Allowed",
+        description: "You cannot deactivate your own administrative session.",
+        confirmText: "Understood",
+        variant: "warning",
+        action: async () => {
+          setConfirmConfig((prev) => ({ ...prev, isOpen: false }));
+        },
+      });
       return;
     }
 
@@ -122,7 +132,16 @@ export const UserManagementView: React.FC = () => {
   const handleInitiateDelete = (user: AccountUser) => {
     const isSelf = user.email.toLowerCase() === currentAdminEmail?.toLowerCase();
     if (isSelf) {
-      alert("You cannot delete your own administrative account.");
+      setConfirmConfig({
+        isOpen: true,
+        title: "Action Not Allowed",
+        description: "You cannot delete your own administrative account.",
+        confirmText: "Understood",
+        variant: "warning",
+        action: async () => {
+          setConfirmConfig((prev) => ({ ...prev, isOpen: false }));
+        },
+      });
       return;
     }
 
@@ -171,9 +190,9 @@ export const UserManagementView: React.FC = () => {
               className="rounded-md border border-slate-300 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-sm focus:border-purple-500 focus:outline-none"
             >
               <option value="">All Roles</option>
-              <option value="Admin">Admin</option>
-              <option value="Staff">Teacher</option>
-              <option value="Student">Student</option>
+              <option value={ROLES.ADMIN}>Admin</option>
+              <option value={ROLES.STAFF}>Teacher</option>
+              <option value={ROLES.STUDENT}>Student</option>
             </select>
           </div>
 
@@ -291,9 +310,9 @@ export const UserManagementView: React.FC = () => {
                               className="rounded border border-slate-200 bg-white px-2 py-1 text-xs text-slate-600 hover:border-slate-300 focus:outline-none"
                               title="Change user role"
                             >
-                              <option value="Student">Student</option>
-                              <option value="Staff">Teacher</option>
-                              <option value="Admin">Admin</option>
+                              <option value={ROLES.STUDENT}>Student</option>
+                              <option value={ROLES.STAFF}>Teacher</option>
+                              <option value={ROLES.ADMIN}>Admin</option>
                             </select>
                           )}
                         </div>

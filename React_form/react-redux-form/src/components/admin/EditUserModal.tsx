@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useUpdateAccountMutation } from "../../api/accountApi";
 import type { AccountUser } from "../../types/account";
+import { getApiErrorMessage } from "../../utils/getApiErrorMessage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -64,10 +65,8 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({
       }).unwrap();
 
       onClose();
-    } catch (err: any) {
-      setErrorMsg(
-        err?.data?.message || err?.data?.errors?.[0] || "Failed to update user."
-      );
+    } catch (err: unknown) {
+      setErrorMsg(getApiErrorMessage(err, "Failed to update user."));
     }
   };
 

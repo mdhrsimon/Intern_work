@@ -8,7 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { homePathForRole } from "../lib/permissions";
-import { useAuthSession } from "../lib/useAuthSession";
+import { useAuthSession } from "../hooks/useAuthSession";
 
 const HomePage = () => {
   const { loggedIn, role, isChecking } = useAuthSession();

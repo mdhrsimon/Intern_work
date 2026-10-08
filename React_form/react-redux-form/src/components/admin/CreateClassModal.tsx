@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useCreateClassMutation } from "../../api/classApi";
+import { getApiErrorMessage } from "../../utils/getApiErrorMessage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -48,10 +49,8 @@ export const CreateClassModal: React.FC<CreateClassModalProps> = ({
       setCode("");
       setDescription("");
       onClose();
-    } catch (err: any) {
-      setErrorMsg(
-        err?.data?.message || "Failed to create class channel."
-      );
+    } catch (err: unknown) {
+      setErrorMsg(getApiErrorMessage(err, "Failed to create class channel."));
     }
   };
 

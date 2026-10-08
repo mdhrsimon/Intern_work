@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useDispatch } from "react-redux";
+import { useAppDispatch } from "../redux/hooks";
 import { useRegisterMutation } from "../api/authApi";
 import { setCredentials } from "../redux/authSlice";
 import { parseRole, homePathForRole } from "../lib/permissions";
+import { ROLES } from "../constants/roles";
+import { getApiErrorMessage } from "../utils/getApiErrorMessage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,7 +31,7 @@ import {
 
 const RegisterPage = () => {
   const navigate = useNavigate();
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -63,10 +65,10 @@ const RegisterPage = () => {
         email: trimmedEmail,
         password,
         fullName: fullName.trim() || undefined,
-        role: "Student",
+        role: ROLES.STUDENT,
       }).unwrap();
 
-      const parsedUserRole = parseRole(authData.role) ?? "Student";
+      const parsedUserRole = parseRole(authData.role) ?? ROLES.STUDENT;
 
       dispatch(
         setCredentials({
@@ -78,12 +80,9 @@ const RegisterPage = () => {
 
       navigate(homePathForRole(parsedUserRole), { replace: true });
     } catch (err: unknown) {
-      const errorObj = err as { data?: { message?: string; errors?: string[] } };
-      const serverMsg =
-        errorObj?.data?.message ||
-        (errorObj?.data?.errors && errorObj.data.errors.join(", ")) ||
-        "Registration failed. Please check your information.";
-      setValidationError(serverMsg);
+      setValidationError(
+        getApiErrorMessage(err, "Registration failed. Please check your information.")
+      );
     }
   };
 

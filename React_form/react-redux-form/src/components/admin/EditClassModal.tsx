@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useUpdateClassMutation } from "../../api/classApi";
 import type { ClassChannel } from "../../types/class";
+import { getApiErrorMessage } from "../../utils/getApiErrorMessage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -58,10 +59,8 @@ export const EditClassModal: React.FC<EditClassModalProps> = ({
       }).unwrap();
 
       onClose();
-    } catch (err: any) {
-      setErrorMsg(
-        err?.data?.message || "Failed to update class channel."
-      );
+    } catch (err: unknown) {
+      setErrorMsg(getApiErrorMessage(err, "Failed to update class channel."));
     }
   };
 

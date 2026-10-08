@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { useAuthSession } from "../lib/useAuthSession";
+import { useAuthSession } from "../hooks/useAuthSession";
 import { useGetMyClassesQuery, useGetClassByIdQuery } from "../api/classApi";
 import { Navbar } from "../components/Navbar";
 import { TeacherAssignmentsView } from "../components/teacher/TeacherAssignmentsView";

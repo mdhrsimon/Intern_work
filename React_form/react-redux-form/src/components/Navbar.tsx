@@ -1,11 +1,12 @@
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { useDispatch } from "react-redux";
+import { useAppDispatch } from "../redux/hooks";
 import { useLogoutMutation, authApi } from "../api/authApi";
 import { userApi } from "../api/userApi";
 import { logOut } from "../redux/authSlice";
-import { useAuthSession } from "../lib/useAuthSession";
+import { useAuthSession } from "../hooks/useAuthSession";
 import { NotificationBell } from "./NotificationBell";
 import { Button } from "./ui/button";
+import { ROLES } from "../constants/roles";
 import {
   GraduationCap,
   LogOut,
@@ -21,7 +22,7 @@ import {
 export const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
   const { role, email, fullName } = useAuthSession();
   const [logoutMutation, { isLoading: isLoggingOut }] = useLogoutMutation();
 
@@ -40,21 +41,21 @@ export const Navbar = () => {
 
   const getRoleBadge = () => {
     switch (role) {
-      case "Admin":
+      case ROLES.ADMIN:
         return (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-purple-50 px-2.5 py-1 text-xs font-semibold text-purple-700 ring-1 ring-inset ring-purple-600/20">
             <Shield className="h-3.5 w-3.5" />
             Admin
           </span>
         );
-      case "Staff":
+      case ROLES.STAFF:
         return (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700 ring-1 ring-inset ring-blue-600/20">
             <BookOpen className="h-3.5 w-3.5" />
             Teacher
           </span>
         );
-      case "Student":
+      case ROLES.STUDENT:
       default:
         return (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
@@ -66,14 +67,14 @@ export const Navbar = () => {
   };
 
   const navLinks = () => {
-    if (role === "Admin") {
+    if (role === ROLES.ADMIN) {
       return [
         { name: "Dashboard", path: "/admin", icon: LayoutDashboard },
         { name: "Student Form", path: "/form", icon: FileText },
         { name: "Student Details", path: "/students", icon: Users },
       ];
     }
-    if (role === "Staff") {
+    if (role === ROLES.STAFF) {
       return [
         { name: "Dashboard", path: "/staff", icon: LayoutDashboard },
         { name: "Student Form", path: "/form", icon: FileText },
@@ -93,9 +94,9 @@ export const Navbar = () => {
         <div className="flex items-center gap-8">
           <Link
             to={
-              role === "Admin"
+              role === ROLES.ADMIN
                 ? "/admin"
-                : role === "Staff"
+                : role === ROLES.STAFF
                 ? "/staff"
                 : "/student"
             }

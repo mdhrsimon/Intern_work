@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { useAssignMemberMutation } from "../../api/classApi";
 import { useGetAccountsQuery } from "../../api/accountApi";
 import type { ClassChannel } from "../../types/class";
+import { ROLES } from "../../constants/roles";
+import { getApiErrorMessage } from "../../utils/getApiErrorMessage";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -26,7 +28,7 @@ export const AssignUserModal: React.FC<AssignUserModalProps> = ({
 }) => {
   const [assignMember, { isLoading }] = useAssignMemberMutation();
   const [selectedUserId, setSelectedUserId] = useState("");
-  const [roleInClass, setRoleInClass] = useState<"Staff" | "Student">("Student");
+  const [roleInClass, setRoleInClass] = useState<"Staff" | "Student">(ROLES.STUDENT);
   const [userSearch, setUserSearch] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -66,8 +68,8 @@ export const AssignUserModal: React.FC<AssignUserModalProps> = ({
       setSelectedUserId("");
       setUserSearch("");
       onClose();
-    } catch (err: any) {
-      setErrorMsg(err?.data?.message || "Failed to assign user to class channel.");
+    } catch (err: unknown) {
+      setErrorMsg(getApiErrorMessage(err, "Failed to assign user to class channel."));
     }
   };
 
@@ -131,8 +133,8 @@ export const AssignUserModal: React.FC<AssignUserModalProps> = ({
                       key={user.id}
                       onClick={() => {
                         setSelectedUserId(user.id);
-                        if (user.role === "Staff") setRoleInClass("Staff");
-                        else setRoleInClass("Student");
+                        if (user.role === ROLES.STAFF) setRoleInClass(ROLES.STAFF);
+                        else setRoleInClass(ROLES.STUDENT);
                       }}
                       className={`flex cursor-pointer items-center justify-between p-2.5 text-xs transition-colors ${
                         isSelected
@@ -162,9 +164,9 @@ export const AssignUserModal: React.FC<AssignUserModalProps> = ({
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
-                onClick={() => setRoleInClass("Staff")}
+                onClick={() => setRoleInClass(ROLES.STAFF)}
                 className={`flex items-center justify-center gap-2 rounded-lg border p-3 text-xs font-semibold transition-all ${
-                  roleInClass === "Staff"
+                  roleInClass === ROLES.STAFF
                     ? "border-blue-500 bg-blue-50 text-blue-700 ring-1 ring-blue-500"
                     : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                 }`}
@@ -175,9 +177,9 @@ export const AssignUserModal: React.FC<AssignUserModalProps> = ({
 
               <button
                 type="button"
-                onClick={() => setRoleInClass("Student")}
+                onClick={() => setRoleInClass(ROLES.STUDENT)}
                 className={`flex items-center justify-center gap-2 rounded-lg border p-3 text-xs font-semibold transition-all ${
-                  roleInClass === "Student"
+                  roleInClass === ROLES.STUDENT
                     ? "border-emerald-500 bg-emerald-50 text-emerald-700 ring-1 ring-emerald-500"
                     : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                 }`}

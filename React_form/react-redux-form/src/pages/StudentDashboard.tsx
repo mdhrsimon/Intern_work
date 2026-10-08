@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { useAuthSession } from "../lib/useAuthSession";
+import { useAuthSession } from "../hooks/useAuthSession";
 import { useGetMyClassesQuery } from "../api/classApi";
+import { ROLES } from "../constants/roles";
 import { Navbar } from "../components/Navbar";
 import { StudentAssignmentsView } from "../components/student/StudentAssignmentsView";
 import { Button } from "@/components/ui/button";
@@ -52,7 +53,7 @@ const StudentDashboard = () => {
                 Student Portal &amp; Course Work
               </div>
               <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-                Welcome, {fullName || "Student"}
+                Welcome, {fullName || ROLES.STUDENT}
               </h1>
               <p className="text-emerald-200/90 text-sm sm:text-base max-w-2xl">
                 View your enrolled class channels, view assigned coursework, submit assignments, and track grades &amp; feedback.

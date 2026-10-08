@@ -1,4 +1,4 @@
-export type Role = "Admin" | "Staff" | "Student" | "User" | null;
+export type Role = "Admin" | "Staff" | "Student" | null;
 
 export interface LoginRequest {
   email: string;

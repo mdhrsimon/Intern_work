@@ -9,6 +9,7 @@ import type { Assignment } from "../../types/assignment";
 import { Button } from "@/components/ui/button";
 import { downloadFile, getAttachmentDownloadUrl, getSubmissionFileDownloadUrl } from "../../utils/file";
 import { formatDate } from "../../utils/date";
+import { getApiErrorMessage } from "../../utils/getApiErrorMessage";
 import { StatusBadge } from "../common/StatusBadge";
 import {
   BookOpen,
@@ -54,8 +55,7 @@ export const StudentAssignmentsView = ({ classId }: StudentAssignmentsViewProps)
       setActiveAssignment(null);
       refetch();
     } catch (err: unknown) {
-      const errorResponse = err as { data?: { message?: string } };
-      setErrorMsg(errorResponse?.data?.message || "Failed to submit work.");
+      setErrorMsg(getApiErrorMessage(err, "Failed to submit work."));
     } finally {
       setIsSubmitting(false);
     }

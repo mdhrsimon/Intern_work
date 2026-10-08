@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { useCreateAccountMutation } from "../../api/accountApi";
 import type { AccountRole } from "../../types/account";
+import { ROLES } from "../../constants/roles";
+import { getApiErrorMessage } from "../../utils/getApiErrorMessage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -39,7 +41,7 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<AccountRole>("Student");
+  const [role, setRole] = useState<AccountRole>(ROLES.STUDENT);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Credentials dialog state — shown after successful creation
@@ -103,11 +105,9 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({
       setFullName("");
       setEmail("");
       setPassword("");
-      setRole("Student");
-    } catch (err: any) {
-      setErrorMsg(
-        err?.data?.message || err?.data?.errors?.[0] || "Failed to create user."
-      );
+      setRole(ROLES.STUDENT);
+    } catch (err: unknown) {
+      setErrorMsg(getApiErrorMessage(err, "Failed to create user."));
     }
   };
 
@@ -143,13 +143,13 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({
                 <p className="text-sm font-semibold text-slate-900 mt-0.5">{credentials.fullName}</p>
               </div>
               <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                credentials.role === "Admin"
+                credentials.role === ROLES.ADMIN
                   ? "bg-purple-50 text-purple-700 ring-1 ring-purple-200"
-                  : credentials.role === "Staff"
+                  : credentials.role === ROLES.STAFF
                   ? "bg-blue-50 text-blue-700 ring-1 ring-blue-200"
                   : "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
               }`}>
-                {credentials.role === "Staff" ? "Teacher" : credentials.role}
+                {credentials.role === ROLES.STAFF ? "Teacher" : credentials.role}
               </span>
             </div>
 
@@ -309,9 +309,9 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({
                 onChange={(e) => setRole(e.target.value as AccountRole)}
                 className="w-full rounded-md border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
               >
-                <option value="Student">Student</option>
-                <option value="Staff">Teacher</option>
-                <option value="Admin">Administrator</option>
+                <option value={ROLES.STUDENT}>Student</option>
+                <option value={ROLES.STAFF}>Teacher</option>
+                <option value={ROLES.ADMIN}>Administrator</option>
               </select>
             </div>
           </div>

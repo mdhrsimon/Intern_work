@@ -1,13 +1,13 @@
 import { useEffect } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useAppDispatch, useAppSelector } from "../redux/hooks";
 import { useMeQuery } from "../api/authApi";
 import { setCredentials, logOut, setInitialized } from "../redux/authSlice";
-import type { RootState } from "../redux/store";
-import { parseRole, type Role } from "../lib/permissions";
+import { parseRole } from "../lib/permissions";
+import type { Role } from "../types/auth";
 
 export function useAuthSession() {
-  const dispatch = useDispatch();
-  const authState = useSelector((state: RootState) => state.auth);
+  const dispatch = useAppDispatch();
+  const authState = useAppSelector((state) => state.auth);
 
   // Call /Auth/me on mount to verify the session.
   // Skip if we already know the user is logged out.

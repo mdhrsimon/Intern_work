@@ -18,10 +18,11 @@ import {
   useMarkAsReadMutation,
   useMarkAllAsReadMutation,
 } from "../api/notificationApi";
-import { useAuthSession } from "../lib/useAuthSession";
+import { useAuthSession } from "../hooks/useAuthSession";
 import { Skeleton } from "./ui/skeleton";
 import { formatRelativeTime } from "../utils/notificationHelpers";
 import { useNotificationToast } from "../context/NotificationToastContext";
+import { ROLES } from "../constants/roles";
 import type { NotificationItem } from "../types/notification";
 
 export const NotificationBell = () => {
@@ -119,7 +120,7 @@ export const NotificationBell = () => {
       return;
     }
 
-    if (role === "Admin") {
+    if (role === ROLES.ADMIN) {
       if (item.type === "UserRegistered" || item.type === "UserStatusChanged") {
         navigate("/admin?tab=accounts");
       } else if (item.classId) {
@@ -127,7 +128,7 @@ export const NotificationBell = () => {
       } else {
         navigate("/admin");
       }
-    } else if (role === "Staff") {
+    } else if (role === ROLES.STAFF) {
       if (item.classId) {
         navigate(
           `/staff?classId=${item.classId}${

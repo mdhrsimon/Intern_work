@@ -9,6 +9,7 @@ import { useNavigate } from "react-router-dom";
 import FormField from "./FormField";
 import EducationForm from "./EducationForm";
 import { getRole } from "../lib/permissions";
+import { ROLES } from "../constants/roles";
 
 
 import {
@@ -100,7 +101,7 @@ const UserForm = ({
     } else {
       await createUser(data).unwrap();
 
-      if (getRole() === "Student") {
+      if (getRole() === ROLES.STUDENT) {
         navigate("/my-submission");
       } else {
         navigate("/students");

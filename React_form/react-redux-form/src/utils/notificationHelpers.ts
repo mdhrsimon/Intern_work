@@ -1,3 +1,5 @@
+import { formatDateShort } from "./date";
+
 export function formatRelativeTime(dateString: string): string {
   try {
     const date = new Date(dateString);
@@ -13,11 +15,9 @@ export function formatRelativeTime(dateString: string): string {
     if (diffHours < 24) return `${diffHours}h ago`;
     if (diffDays < 7) return `${diffDays}d ago`;
 
-    return date.toLocaleDateString(undefined, {
-      month: "short",
-      day: "numeric",
-    });
+    return formatDateShort(date);
   } catch {
     return "";
   }
 }
+

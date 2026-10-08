@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { useAuthSession } from "../lib/useAuthSession";
+import { useAuthSession } from "../hooks/useAuthSession";
 import { Navbar } from "../components/Navbar";
 import { Button } from "@/components/ui/button";
 import { UserManagementView } from "../components/admin/UserManagementView";

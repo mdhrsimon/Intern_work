@@ -1,5 +1,6 @@
 import React from "react";
 import type { AccountUser } from "../../types/account";
+import { ROLES } from "../../constants/roles";
 import { Button } from "@/components/ui/button";
 import {
   Shield,
@@ -27,21 +28,21 @@ export const ViewUserModal: React.FC<ViewUserModalProps> = ({
 
   const getRoleBadge = (role: string) => {
     switch (role) {
-      case "Admin":
+      case ROLES.ADMIN:
         return (
           <span className="inline-flex items-center gap-1 rounded-full bg-purple-50 px-2.5 py-0.5 text-xs font-semibold text-purple-700 ring-1 ring-inset ring-purple-600/20">
             <Shield className="h-3 w-3" />
             Admin
           </span>
         );
-      case "Staff":
+      case ROLES.STAFF:
         return (
           <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700 ring-1 ring-inset ring-blue-600/20">
             <BookOpen className="h-3 w-3" />
             Teacher
           </span>
         );
-      case "Student":
+      case ROLES.STUDENT:
       default:
         return (
           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-600/20">

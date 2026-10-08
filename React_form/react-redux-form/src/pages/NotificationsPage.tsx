@@ -23,10 +23,11 @@ import {
   useMarkAsReadMutation,
   useMarkAllAsReadMutation,
 } from "../api/notificationApi";
-import { useAuthSession } from "../lib/useAuthSession";
+import { useAuthSession } from "../hooks/useAuthSession";
 import { formatRelativeTime } from "../utils/notificationHelpers";
 import { useNotificationToast } from "../context/NotificationToastContext";
 import type { NotificationItem } from "../types/notification";
+import { ROLES } from "../constants/roles";
 
 const NotificationsPage = () => {
   const navigate = useNavigate();
@@ -58,13 +59,13 @@ const NotificationsPage = () => {
 
   const getRoleHeaderStyle = () => {
     switch (role) {
-      case "Admin":
+      case ROLES.ADMIN:
         return {
           banner: "bg-purple-900 border-purple-800 text-white",
           tag: "bg-purple-800 text-purple-200 border-purple-700",
           accentBtn: "bg-white text-purple-950 hover:bg-purple-50",
         };
-      case "Staff":
+      case ROLES.STAFF:
         return {
           banner: "bg-blue-900 border-blue-800 text-white",
           tag: "bg-blue-800 text-blue-200 border-blue-700",
@@ -125,7 +126,7 @@ const NotificationsPage = () => {
       return;
     }
 
-    if (role === "Admin") {
+    if (role === ROLES.ADMIN) {
       if (item.type === "UserRegistered" || item.type === "UserStatusChanged") {
         navigate("/admin?tab=accounts");
       } else if (item.classId) {
@@ -133,7 +134,7 @@ const NotificationsPage = () => {
       } else {
         navigate("/admin");
       }
-    } else if (role === "Staff") {
+    } else if (role === ROLES.STAFF) {
       if (item.classId) {
         navigate(
           `/staff?classId=${item.classId}${

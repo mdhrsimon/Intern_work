@@ -1,11 +1,13 @@
 import { loadAuth } from "./authStorage";
+import type { Role } from "../types/auth";
+import { ROLES } from "../constants/roles";
 
-export type Role = "Admin" | "Staff" | "Student" | null;
+export type { Role };
 
 export const DASHBOARD_PATH = {
-  Admin: "/admin",
-  Staff: "/staff",
-  Student: "/student",
+  [ROLES.ADMIN]: "/admin",
+  [ROLES.STAFF]: "/staff",
+  [ROLES.STUDENT]: "/student",
 } as const;
 
 export function getRole(): Role {
@@ -19,29 +21,30 @@ export function isLoggedIn() {
 }
 
 export function canAccessList(role: Role = getRole()) {
-  return role === "Staff" || role === "Admin";
+  return role === ROLES.STAFF || role === ROLES.ADMIN;
 }
 
 export function canEdit(role: Role = getRole()) {
-  return role === "Staff" || role === "Admin";
+  return role === ROLES.STAFF || role === ROLES.ADMIN;
 }
 
 export function canDelete(role: Role = getRole()) {
-  return role === "Admin";
+  return role === ROLES.ADMIN;
 }
 
 export function homePathForRole(role: Role = getRole()) {
-  if (role === "Admin") return DASHBOARD_PATH.Admin;
-  if (role === "Staff") return DASHBOARD_PATH.Staff;
-  if (role === "Student") return DASHBOARD_PATH.Student;
+  if (role === ROLES.ADMIN) return DASHBOARD_PATH[ROLES.ADMIN];
+  if (role === ROLES.STAFF) return DASHBOARD_PATH[ROLES.STAFF];
+  if (role === ROLES.STUDENT) return DASHBOARD_PATH[ROLES.STUDENT];
   return "/";
 }
 
 export function parseRole(value: string | undefined | null): Role {
   if (!value) return null;
   const normalized = value.trim();
-  if (normalized.toLowerCase() === "admin") return "Admin";
-  if (normalized.toLowerCase() === "staff" || normalized.toLowerCase() === "teacher") return "Staff";
-  if (normalized.toLowerCase() === "student" || normalized.toLowerCase() === "user") return "Student";
+  if (normalized.toLowerCase() === "admin") return ROLES.ADMIN;
+  if (normalized.toLowerCase() === "staff" || normalized.toLowerCase() === "teacher") return ROLES.STAFF;
+  if (normalized.toLowerCase() === "student" || normalized.toLowerCase() === "user") return ROLES.STUDENT;
   return null;
-}
+}
+

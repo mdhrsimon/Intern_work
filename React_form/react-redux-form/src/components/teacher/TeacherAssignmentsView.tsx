@@ -13,6 +13,9 @@ import type { Assignment, AssignmentSubmission } from "../../types/assignment";
 import { Button } from "@/components/ui/button";
 import { downloadFile, getAttachmentDownloadUrl, getSubmissionFileDownloadUrl } from "../../utils/file";
 import { formatDate } from "../../utils/date";
+import { getApiErrorMessage } from "../../utils/getApiErrorMessage";
+import { ConfirmationModal } from "../admin/ConfirmationModal";
+import { useNotificationToast } from "../../context/NotificationToastContext";
 import { StatusBadge } from "../common/StatusBadge";
 import {
   BookOpen,
@@ -47,6 +50,22 @@ export const TeacherAssignmentsView = ({ classId }: TeacherAssignmentsViewProps)
   const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+
+  const [confirmConfig, setConfirmConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    confirmText: string;
+    variant: "danger" | "warning" | "primary";
+    action: () => Promise<void>;
+  }>({
+    isOpen: false,
+    title: "",
+    description: "",
+    confirmText: "Confirm",
+    variant: "danger",
+    action: async () => {},
+  });
 
   // Submissions drawer state
   const [activeAssignmentId, setActiveAssignmentId] = useState<number | null>(null);
@@ -95,23 +114,38 @@ export const TeacherAssignmentsView = ({ classId }: TeacherAssignmentsViewProps)
       setIsModalOpen(false);
       refetch();
     } catch (err: unknown) {
-      const errorResponse = err as { data?: { message?: string } };
-      setErrorMsg(errorResponse?.data?.message || "Failed to save assignment.");
+      setErrorMsg(getApiErrorMessage(err, "Failed to save assignment."));
     }
   };
 
-  const handleDelete = async (assignmentId: number) => {
-    if (confirm("Are you sure you want to delete this assignment?")) {
-      await deleteMutation({ id: assignmentId, classChannelId: classId });
-      refetch();
-    }
+  const handleDelete = (assignmentId: number) => {
+    setConfirmConfig({
+      isOpen: true,
+      title: "Delete Assignment",
+      description: "Are you sure you want to delete this assignment?",
+      confirmText: "Delete",
+      variant: "danger",
+      action: async () => {
+        await deleteMutation({ id: assignmentId, classChannelId: classId });
+        refetch();
+        setConfirmConfig((prev) => ({ ...prev, isOpen: false }));
+      },
+    });
   };
 
-  const handleDeleteAttachment = async (assignmentId: number, fileId: number) => {
-    if (confirm("Are you sure you want to delete this attachment?")) {
-      await deleteAttachmentMutation({ assignmentId, fileId });
-      refetch();
-    }
+  const handleDeleteAttachment = (assignmentId: number, fileId: number) => {
+    setConfirmConfig({
+      isOpen: true,
+      title: "Delete Attachment",
+      description: "Are you sure you want to delete this attachment?",
+      confirmText: "Delete",
+      variant: "danger",
+      action: async () => {
+        await deleteAttachmentMutation({ assignmentId, fileId });
+        refetch();
+        setConfirmConfig((prev) => ({ ...prev, isOpen: false }));
+      },
+    });
   };
 
   return (
@@ -304,6 +338,16 @@ export const TeacherAssignmentsView = ({ classId }: TeacherAssignmentsViewProps)
           </div>
         </div>
       )}
+
+      <ConfirmationModal
+        isOpen={confirmConfig.isOpen}
+        onClose={() => setConfirmConfig((prev) => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmConfig.action}
+        title={confirmConfig.title}
+        description={confirmConfig.description}
+        confirmText={confirmConfig.confirmText}
+        variant={confirmConfig.variant}
+      />
     </div>
   );
 };
@@ -312,6 +356,7 @@ export const TeacherAssignmentsView = ({ classId }: TeacherAssignmentsViewProps)
 const SubmissionsReviewList = ({ assignmentId }: { assignmentId: number }) => {
   const { data: submissions, isLoading, refetch } = useGetSubmissionsQuery(assignmentId);
   const [returnMutation] = useReturnSubmissionMutation();
+  const { showNotificationToast } = useNotificationToast();
 
   const [selectedSub, setSelectedSub] = useState<AssignmentSubmission | null>(null);
   const [grade, setGrade] = useState("");
@@ -339,7 +384,18 @@ const SubmissionsReviewList = ({ assignmentId }: { assignmentId: number }) => {
       setSelectedSub(null);
       refetch();
     } catch {
-      alert("Failed to return submission.");
+      showNotificationToast({
+        id: -1,
+        recipientId: "",
+        type: "General",
+        title: "Return Failed",
+        message: "Failed to return submission.",
+        classId: null,
+        assignmentId,
+        isRead: false,
+        createdAt: new Date().toISOString(),
+        readAt: null,
+      });
     } finally {
       setSubmitting(false);
     }

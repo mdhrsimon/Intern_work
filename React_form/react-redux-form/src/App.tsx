@@ -14,6 +14,7 @@ import MySubmissionPage from "./pages/MySubmissionPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import { NotificationToastProvider } from "./context/NotificationToastContext";
 import { SignalRProvider } from "./context/SignalRContext";
+import { ROLES } from "./constants/roles";
 
 const App = () => {
   return (
@@ -30,7 +31,7 @@ const App = () => {
             <Route
               path="/admin"
               element={
-                <RequireAuth roles={["Admin"]}>
+                <RequireAuth roles={[ROLES.ADMIN]}>
                   <AdminDashboard />
                 </RequireAuth>
               }
@@ -38,7 +39,7 @@ const App = () => {
             <Route
               path="/staff"
               element={
-                <RequireAuth roles={["Staff"]}>
+                <RequireAuth roles={[ROLES.STAFF]}>
                   <StaffDashboard />
                 </RequireAuth>
               }
@@ -46,7 +47,7 @@ const App = () => {
             <Route
               path="/teacher"
               element={
-                <RequireAuth roles={["Staff"]}>
+                <RequireAuth roles={[ROLES.STAFF]}>
                   <StaffDashboard />
                 </RequireAuth>
               }
@@ -54,7 +55,7 @@ const App = () => {
             <Route
               path="/student"
               element={
-                <RequireAuth roles={["Student"]}>
+                <RequireAuth roles={[ROLES.STUDENT]}>
                   <StudentDashboard />
                 </RequireAuth>
               }
@@ -82,7 +83,7 @@ const App = () => {
             <Route
               path="/students"
               element={
-                <RequireAuth roles={["Staff", "Admin"]}>
+                <RequireAuth roles={[ROLES.STAFF, ROLES.ADMIN]}>
                   <DisplayPage />
                 </RequireAuth>
               }
@@ -90,7 +91,7 @@ const App = () => {
             <Route
               path="/users/:id"
               element={
-                <RequireAuth roles={["Staff", "Admin"]}>
+                <RequireAuth roles={[ROLES.STAFF, ROLES.ADMIN]}>
                   <ViewUserPage />
                 </RequireAuth>
               }
@@ -98,7 +99,7 @@ const App = () => {
             <Route
               path="/users/:id/edit"
               element={
-                <RequireAuth roles={["Staff", "Admin"]}>
+                <RequireAuth roles={[ROLES.STAFF, ROLES.ADMIN]}>
                   <EditUserPage />
                 </RequireAuth>
               }

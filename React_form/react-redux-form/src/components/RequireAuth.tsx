@@ -1,7 +1,7 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { homePathForRole } from "../lib/permissions";
 import type { Role } from "../lib/permissions";
-import { useAuthSession } from "../lib/useAuthSession";
+import { useAuthSession } from "../hooks/useAuthSession";
 import { Loader2 } from "lucide-react";
 
 type Props = {

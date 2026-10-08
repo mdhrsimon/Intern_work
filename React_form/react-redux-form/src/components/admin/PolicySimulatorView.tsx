@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useGetClassesQuery, useCheckPolicyMutation } from "../../api/classApi";
 import { useGetAccountsQuery } from "../../api/accountApi";
 import type { PolicyCheckResult } from "../../types/class";
+import { getApiErrorMessage } from "../../utils/getApiErrorMessage";
 import { Button } from "@/components/ui/button";
 import {
   ShieldCheck,
@@ -42,10 +43,10 @@ export const PolicySimulatorView = () => {
       }).unwrap();
 
       setPolicyResult(res);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setPolicyResult({
         isAllowed: false,
-        reason: err?.data?.message || "Policy evaluation returned 403 Forbidden.",
+        reason: getApiErrorMessage(err, "Policy evaluation returned 403 Forbidden."),
         userRole: selectedUser?.role || "Unknown",
         className: selectedClass?.name || "Unknown",
       });

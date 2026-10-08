@@ -4,12 +4,12 @@ import {
   HubConnectionBuilder,
   LogLevel,
 } from "@microsoft/signalr";
-import { useDispatch, useSelector } from "react-redux";
+import { useAppDispatch, useAppSelector } from "../redux/hooks";
 import { useNavigate } from "react-router-dom";
-import type { RootState, AppDispatch } from "../redux/store";
 import { notificationApi } from "../api/notificationApi";
 import { useNotificationToast } from "./NotificationToastContext";
 import type { NotificationItem } from "../types/notification";
+import { ROLES } from "../constants/roles";
 
 interface SignalRContextType {
   connection: HubConnection | null;
@@ -22,11 +22,11 @@ const SignalRContext = createContext<SignalRContextType>({
 });
 
 export const SignalRProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const dispatch = useDispatch<AppDispatch>();
+  const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const { showNotificationToast } = useNotificationToast();
-  const isAuthenticated = useSelector((state: RootState) => state.auth.isAuthenticated);
-  const user = useSelector((state: RootState) => state.auth.user);
+  const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
+  const user = useAppSelector((state) => state.auth.user);
 
   const [connection, setConnection] = useState<HubConnection | null>(null);
   const [isConnected, setIsConnected] = useState<boolean>(false);
@@ -47,7 +47,7 @@ export const SignalRProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       const role = user?.role;
 
-      if (role === "Admin") {
+      if (role === ROLES.ADMIN) {
         if (item.type === "UserRegistered" || item.type === "UserStatusChanged") {
           navigate("/admin?tab=accounts");
         } else if (item.classId) {
@@ -55,7 +55,7 @@ export const SignalRProvider: React.FC<{ children: React.ReactNode }> = ({ child
         } else {
           navigate("/admin");
         }
-      } else if (role === "Staff") {
+      } else if (role === ROLES.STAFF) {
         if (item.classId) {
           navigate(`/staff?classId=${item.classId}${item.assignmentId ? `&assignmentId=${item.assignmentId}` : ""}`);
         } else {
