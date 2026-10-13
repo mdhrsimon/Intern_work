@@ -178,4 +178,3 @@ await DbSeeder.SeedAsync(app.Services);
 
 app.Run();
 
-public partial class Program { }
