@@ -82,6 +82,8 @@ public class ClassAuthorizationService
         var roles = await _userManager.GetRolesAsync(user);
         var userRole = RoleHelper.GetPrimaryRole(roles);
 
+        var (isAllowed, isTeacherOrAdmin, enrollment) = await CheckClassAuthAsync(request.ClassId, userId, userRole);
+
         if (userRole == RoleConstants.Admin)
         {
             return new PolicyCheckResult
@@ -94,10 +96,7 @@ public class ClassAuthorizationService
             };
         }
 
-        var enrollment = await _context.ClassEnrollments
-            .FirstOrDefaultAsync(e => e.ClassChannelId == request.ClassId && e.ApplicationUserId == userId);
-
-        if (enrollment == null)
+        if (!isAllowed || enrollment == null)
         {
             return new PolicyCheckResult
             {
@@ -111,7 +110,7 @@ public class ClassAuthorizationService
 
         if (request.Action == "ManageClass")
         {
-            if (enrollment.RoleInClass == RoleConstants.Staff || enrollment.RoleInClass == RoleConstants.Teacher)
+            if (isTeacherOrAdmin)
             {
                 return new PolicyCheckResult
                 {

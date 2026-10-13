@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 
 import {
   useGetUsersInfiniteQuery,
-  useClearUsersMutation,
   useDeleteUserMutation,
 } from "../api/userApi";
 import type { User } from "../types/user";
@@ -48,8 +47,6 @@ const DisplayPage = () => {
     fetchNextPage,
   } = useGetUsersInfiniteQuery();
 
-  const [clearUsers, { isLoading: isClearing }] =
-    useClearUsersMutation();
   const [deleteUser, { isLoading: isDeleting }] =
     useDeleteUserMutation();
 
@@ -85,14 +82,6 @@ const DisplayPage = () => {
     observer.observe(el);
     return () => observer.disconnect();
   }, [handleObserver]);
-
-  const handleClearAll = async () => {
-    try {
-      await clearUsers().unwrap();
-    } catch (error) {
-      console.error("Error clearing users:", error);
-    }
-  };
 
   const handleDelete = async (id: number | string | undefined) => {
     if (id === undefined) return;
@@ -177,44 +166,6 @@ const DisplayPage = () => {
               </Button>
             </Link>
 
-            {/* Clear all — Admin only */}
-            {roleCanDelete && (
-              <AlertDialog>
-                <AlertDialogTrigger
-                  render={
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="lg"
-                      disabled={users.length === 0 || isClearing}
-                    />
-                  }
-                >
-                  Clear All
-                </AlertDialogTrigger>
-
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>
-                      Clear all submissions?
-                    </AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This permanently removes every submitted user. This
-                      cannot be undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={handleClearAll}
-                      disabled={isClearing}
-                    >
-                      {isClearing ? "Clearing..." : "Clear All"}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            )}
           </div>
         </div>
 

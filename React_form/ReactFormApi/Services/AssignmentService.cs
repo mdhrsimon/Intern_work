@@ -221,11 +221,14 @@ public class AssignmentService
         if (assignment == null)
             return AssignmentServiceResult<AssignmentSubmissionDto>.Fail(404, $"Assignment with ID {id} was not found.");
 
-        var (isAllowed, _, _) = await _authorizationService.CheckClassAuthAsync(
-            assignment.ClassChannelId, currentUserId, currentUserRole);
+        if (!string.Equals(currentUserRole, RoleConstants.Student, StringComparison.OrdinalIgnoreCase))
+            return AssignmentServiceResult<AssignmentSubmissionDto>.Fail(403, "Only students can submit assignments.");
 
-        if (!isAllowed)
-            return AssignmentServiceResult<AssignmentSubmissionDto>.Fail(403, "You are not enrolled in this class.");
+        var enrollment = await _context.ClassEnrollments
+            .FirstOrDefaultAsync(e => e.ClassChannelId == assignment.ClassChannelId && e.ApplicationUserId == currentUserId);
+
+        if (enrollment == null || !string.Equals(enrollment.RoleInClass, RoleConstants.Student, StringComparison.OrdinalIgnoreCase))
+            return AssignmentServiceResult<AssignmentSubmissionDto>.Fail(403, "You must be enrolled as a student in this class to submit.");
 
         var submission = await _context.AssignmentSubmissions
             .FirstOrDefaultAsync(s => s.AssignmentId == id && s.StudentUserId == currentUserId);

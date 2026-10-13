@@ -57,7 +57,7 @@ public class AuthService
             return AuthServiceResult.Fail(400, "Registration failed", result.Errors.Select(e => e.Description));
         }
 
-        var role = RoleHelper.NormalizeRole(request.Role);
+        var role = RoleConstants.Student;
 
         if (!await _roleManager.RoleExistsAsync(role))
         {

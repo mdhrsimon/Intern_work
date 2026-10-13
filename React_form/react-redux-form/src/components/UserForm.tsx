@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import {
   FormProvider,
   useForm,
@@ -34,6 +35,8 @@ import {
 import {
   useCreateUserMutation,
   useUpdateUserMutation,
+  useUpdateMySubmissionMutation,
+  useGetMySubmissionQuery,
 } from "../api/userApi";
 import type { User } from "../types/user";
 
@@ -57,6 +60,14 @@ const UserForm = ({
 }: UserFormProps) => {
  
   const navigate = useNavigate();
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const isStudent = getRole() === ROLES.STUDENT;
+
+  const { data: mySubmission } = useGetMySubmissionQuery(undefined, {
+    skip: !isStudent || !!initialUser,
+  });
+
+  const effectiveIsEdit = isEdit || (isStudent && !!mySubmission);
 
   const methods = useForm<User>({
   defaultValues: initialUser
@@ -75,6 +86,15 @@ const UserForm = ({
       },
 });
 
+  useEffect(() => {
+    if (isStudent && mySubmission && !initialUser) {
+      methods.reset({
+        ...mySubmission,
+        education: mySubmission.education ?? [],
+      });
+    }
+  }, [isStudent, mySubmission, initialUser, methods]);
+
   const {
     register,
     handleSubmit,
@@ -82,32 +102,43 @@ const UserForm = ({
     formState: { errors },
   } = methods;
 
-  const [createUser, { isLoading: isCreating, error: createError }] =
+  const [createUser, { isLoading: isCreating }] =
   useCreateUserMutation();
 
-  const [updateUser, { isLoading: isUpdating, error: updateError }] =
+  const [updateUser, { isLoading: isUpdating }] =
   useUpdateUserMutation();
 
-  const isLoading = isCreating || isUpdating;
-  const error = createError || updateError;
+  const [updateMySubmission, { isLoading: isUpdatingMy }] =
+  useUpdateMySubmissionMutation();
+
+  const isLoading = isCreating || isUpdating || isUpdatingMy;
 
   const onSubmit = async (data: User) => {
+  setSubmitError(null);
   try {
-    if (isEdit && initialUser?.id != null) {
-      await updateUser({
-        ...data,
-        id: initialUser.id,
-      }).unwrap();
+    if (effectiveIsEdit) {
+      if (isStudent) {
+        await updateMySubmission(data).unwrap();
+        navigate("/my-submission");
+      } else if (initialUser?.id != null) {
+        await updateUser({
+          ...data,
+          id: initialUser.id,
+        }).unwrap();
+        navigate("/students");
+      }
     } else {
       await createUser(data).unwrap();
 
-      if (getRole() === ROLES.STUDENT) {
+      if (isStudent) {
         navigate("/my-submission");
       } else {
         navigate("/students");
       }
     }   
-  } catch (err) {
+  } catch (err: any) {
+    const msg = err?.data?.message || err?.message || "Error saving user information.";
+    setSubmitError(msg);
     console.error("Error saving user:", err);
   }
 };
@@ -126,6 +157,14 @@ const UserForm = ({
           <CardDescription className="text-base mt-2">
             Please enter your personal information below.
           </CardDescription>
+
+          {submitError && (
+            <div className="mt-4">
+              <Alert variant="destructive">
+                <AlertDescription>{submitError}</AlertDescription>
+              </Alert>
+            </div>
+          )}
 
         </CardHeader>
 
@@ -284,10 +323,10 @@ const UserForm = ({
             </div>
 
             {/* API Error */}
-            {error && (
+            {submitError && (
               <Alert variant="destructive">
                 <AlertDescription className="text-base">
-                  Failed to save user. Please try again.
+                  {submitError}
                 </AlertDescription>
               </Alert>
             )}

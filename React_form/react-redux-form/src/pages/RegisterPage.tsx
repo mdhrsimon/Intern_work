@@ -65,7 +65,6 @@ const RegisterPage = () => {
         email: trimmedEmail,
         password,
         fullName: fullName.trim() || undefined,
-        role: ROLES.STUDENT,
       }).unwrap();
 
       const parsedUserRole = parseRole(authData.role) ?? ROLES.STUDENT;

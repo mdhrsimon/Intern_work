@@ -153,11 +153,14 @@ public class AssignmentFileService
         if (assignment == null)
             return FileServiceResult<SubmissionFileDto>.Fail(404, "Assignment not found.");
 
-        var (isAllowed, _, _) = await _authorizationService.CheckClassAuthAsync(
-            assignment.ClassChannelId, currentUserId, currentUserRole);
+        if (!string.Equals(currentUserRole, RoleConstants.Student, StringComparison.OrdinalIgnoreCase))
+            return FileServiceResult<SubmissionFileDto>.Fail(403, "Only students can upload submission files.");
 
-        if (!isAllowed)
-            return FileServiceResult<SubmissionFileDto>.Fail(403, "You are not enrolled in this class.");
+        var enrollment = await _context.ClassEnrollments
+            .FirstOrDefaultAsync(e => e.ClassChannelId == assignment.ClassChannelId && e.ApplicationUserId == currentUserId);
+
+        if (enrollment == null || !string.Equals(enrollment.RoleInClass, RoleConstants.Student, StringComparison.OrdinalIgnoreCase))
+            return FileServiceResult<SubmissionFileDto>.Fail(403, "You must be enrolled as a student in this class to upload submission files.");
 
         var submission = await _context.AssignmentSubmissions
             .Include(s => s.Files)
@@ -228,11 +231,21 @@ public class AssignmentFileService
     public async Task<FileServiceResult<object>> DeleteSubmissionFileAsync(
         int assignmentId,
         int fileId,
-        string currentUserId)
+        string currentUserId,
+        string currentUserRole)
     {
         var assignment = await _context.Assignments.FindAsync(assignmentId);
         if (assignment == null)
             return FileServiceResult<object>.Fail(404, "Assignment not found.");
+
+        if (!string.Equals(currentUserRole, RoleConstants.Student, StringComparison.OrdinalIgnoreCase))
+            return FileServiceResult<object>.Fail(403, "Only students can delete submission files.");
+
+        var enrollment = await _context.ClassEnrollments
+            .FirstOrDefaultAsync(e => e.ClassChannelId == assignment.ClassChannelId && e.ApplicationUserId == currentUserId);
+
+        if (enrollment == null || !string.Equals(enrollment.RoleInClass, RoleConstants.Student, StringComparison.OrdinalIgnoreCase))
+            return FileServiceResult<object>.Fail(403, "You must be enrolled as a student in this class to delete submission files.");
 
         var submission = await _context.AssignmentSubmissions
             .FirstOrDefaultAsync(s => s.AssignmentId == assignmentId && s.StudentUserId == currentUserId);

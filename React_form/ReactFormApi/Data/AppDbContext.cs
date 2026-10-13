@@ -34,6 +34,14 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     {
         base.OnModelCreating(builder);
 
+        // User (Form Submissions) configuration
+        builder.Entity<User>(entity =>
+        {
+            entity.HasIndex(u => u.ApplicationUserId)
+                .IsUnique()
+                .HasFilter("[ApplicationUserId] IS NOT NULL");
+        });
+
         // ClassEnrollment configuration
         builder.Entity<ClassEnrollment>(entity =>
         {

@@ -65,12 +65,12 @@ export const userApi = createApi({
       invalidatesTags: ["Users"],
     }),
 
-    clearUsers: builder.mutation<void, void>({
-      query: () => ({
-        url: "users",
-        method: "DELETE",
+    updateMySubmission: builder.mutation<User, Partial<User>>({
+      query: (user) => ({
+        url: "users/me",
+        method: "PUT",
+        body: user,
       }),
-
       invalidatesTags: ["Users"],
     }),
 
@@ -88,8 +88,8 @@ export const {
   useGetUsersInfiniteQuery,
   useGetUserByIdQuery,
   useUpdateUserMutation,
+  useUpdateMySubmissionMutation,
   useCreateUserMutation,
-  useClearUsersMutation,
   useDeleteUserMutation,
   useGetMySubmissionQuery,
   useGetStudentDetailsQuery,

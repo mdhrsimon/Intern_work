@@ -148,9 +148,34 @@ app.MapHub<ReactFormApi.Hubs.NotificationHub>("/hubs/notifications");
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    if (await db.Database.CanConnectAsync())
+    {
+        try
+        {
+            var duplicates = await db.Users
+                .Where(u => u.ApplicationUserId != null)
+                .GroupBy(u => u.ApplicationUserId)
+                .Where(g => g.Count() > 1)
+                .Select(g => new { ApplicationUserId = g.Key, Count = g.Count() })
+                .ToListAsync();
+
+            if (duplicates.Count > 0)
+            {
+                var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+                logger.LogError("Found {Count} duplicate ApplicationUserId groups in Users table! Cannot safely apply unique index.", duplicates.Count);
+                throw new InvalidOperationException($"Duplicate ApplicationUserId found in Users table ({duplicates.Count} groups). Resolve duplicates before running migration.");
+            }
+        }
+        catch (Microsoft.Data.SqlClient.SqlException ex) when (ex.Number == 208)
+        {
+            // Table doesn't exist yet on fresh database; MigrateAsync will create it.
+        }
+    }
     await db.Database.MigrateAsync();
 }
 
 await DbSeeder.SeedAsync(app.Services);
 
 app.Run();
+
+public partial class Program { }

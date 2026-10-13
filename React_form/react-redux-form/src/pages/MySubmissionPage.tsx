@@ -60,12 +60,19 @@ const MySubmissionPage = () => {
             <h1 className="text-3xl font-bold tracking-tight text-slate-900">My Submission</h1>
             <p className="text-sm text-slate-500 mt-1">Review your registered profile and education details.</p>
           </div>
-          <Link to="/student">
-            <Button variant="outline" size="sm" className="gap-1.5">
-              <ArrowLeft className="h-4 w-4" />
-              Dashboard
-            </Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link to="/form">
+              <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700">
+                Edit Submission
+              </Button>
+            </Link>
+            <Link to="/student">
+              <Button variant="outline" size="sm" className="gap-1.5">
+                <ArrowLeft className="h-4 w-4" />
+                Dashboard
+              </Button>
+            </Link>
+          </div>
         </div>
 
         <Card className="border-slate-200/80 shadow-sm">

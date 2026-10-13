@@ -79,8 +79,9 @@ public class AssignmentFilesController : ControllerBase
     public async Task<IActionResult> DeleteSubmissionFile(int id, int fileId)
     {
         var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var currentUserRole = User.FindFirstValue(ClaimTypes.Role) ?? "Student";
 
-        var result = await _fileService.DeleteSubmissionFileAsync(id, fileId, currentUserId);
+        var result = await _fileService.DeleteSubmissionFileAsync(id, fileId, currentUserId, currentUserRole);
         if (!result.Success)
             return StatusCode(result.StatusCode, new { message = result.Message });
 

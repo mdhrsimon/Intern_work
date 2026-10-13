@@ -1,8 +1,8 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using ReactFormApi.Constants;
 using ReactFormApi.DTOs.Users;
-using ReactFormApi.Models;
 using ReactFormApi.Services;
 
 namespace ReactFormApi.Controllers;
@@ -25,24 +25,31 @@ public class UsersController : ControllerBase
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 5)
     {
-        var result = await _userService.GetUsersAsync(page, pageSize);
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var currentUserRole = User.FindFirstValue(ClaimTypes.Role) ?? RoleConstants.Student;
+
+        var result = await _userService.GetUsersAsync(page, pageSize, currentUserId, currentUserRole);
         return Ok(result);
     }
 
     // GET: api/users/5
     [HttpGet("{id:int}")]
     [Authorize(Roles = "Staff,Teacher,Admin")]
-    public async Task<IActionResult> GetUsers(int id)
+    public async Task<IActionResult> GetUser(int id)
     {
-        var user = await _userService.GetUserByIdAsync(id);
-        if (user == null)
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var currentUserRole = User.FindFirstValue(ClaimTypes.Role) ?? RoleConstants.Student;
+
+        var result = await _userService.GetUserByIdAsync(id, currentUserId, currentUserRole);
+        if (!result.Success)
         {
-            return NotFound(new { message = $"User with id {id} was not found." });
+            return StatusCode(result.StatusCode, new { message = result.Message });
         }
 
-        return Ok(user);
+        return Ok(result.Data);
     }
 
+    // GET: api/users/me
     [HttpGet("me")]
     [Authorize]
     public async Task<IActionResult> GetMySubmission()
@@ -50,7 +57,7 @@ public class UsersController : ControllerBase
         var accountId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(accountId))
         {
-            return Unauthorized();
+            return Unauthorized(new { message = "User not authenticated." });
         }
 
         var user = await _userService.GetMySubmissionAsync(accountId);
@@ -62,37 +69,56 @@ public class UsersController : ControllerBase
         return Ok(user);
     }
 
+    // PUT: api/users/me
+    [HttpPut("me")]
+    [Authorize]
+    public async Task<IActionResult> UpdateMySubmission([FromBody] UpdateUserRequest request)
+    {
+        var accountId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(accountId))
+        {
+            return Unauthorized(new { message = "User not authenticated." });
+        }
+
+        var result = await _userService.UpdateMySubmissionAsync(accountId, request);
+        if (!result.Success)
+        {
+            return StatusCode(result.StatusCode, new { message = result.Message });
+        }
+
+        return Ok(result.Data);
+    }
+
     // POST: api/users
     [HttpPost]
     [Authorize]
-    public async Task<IActionResult> CreateUser(User user)
+    public async Task<IActionResult> CreateUser([FromBody] CreateUserRequest request)
     {
         var accountId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        var created = await _userService.CreateUserAsync(user, accountId);
-        return Ok(created);
+        var result = await _userService.CreateUserAsync(request, accountId);
+        if (!result.Success)
+        {
+            return StatusCode(result.StatusCode, new { message = result.Message });
+        }
+
+        return Ok(result.Data);
     }
 
     // PUT: api/users/5
     [HttpPut("{id:int}")]
     [Authorize(Roles = "Staff,Teacher,Admin")]
-    public async Task<IActionResult> UpdateUser(int id, User updatedUser)
+    public async Task<IActionResult> UpdateUser(int id, [FromBody] UpdateUserRequest request)
     {
-        var updated = await _userService.UpdateUserAsync(id, updatedUser);
-        if (updated == null)
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var currentUserRole = User.FindFirstValue(ClaimTypes.Role) ?? RoleConstants.Student;
+
+        var result = await _userService.UpdateUserAsync(id, request, currentUserId, currentUserRole);
+        if (!result.Success)
         {
-            return NotFound(new { message = $"User with id {id} was not found." });
+            return StatusCode(result.StatusCode, new { message = result.Message });
         }
 
-        return Ok(updated);
-    }
-
-    // DELETE: api/users
-    [HttpDelete]
-    [Authorize(Roles = "Admin")]
-    public async Task<IActionResult> DeleteUsers()
-    {
-        await _userService.DeleteAllUsersAsync();
-        return Ok();
+        return Ok(result.Data);
     }
 
     // DELETE: api/Users/5

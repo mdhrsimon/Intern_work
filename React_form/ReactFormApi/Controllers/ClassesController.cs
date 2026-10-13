@@ -125,6 +125,7 @@ public class ClassesController : ControllerBase
 
     // POST: api/classes/check-policy (Policy Simulator helper for demonstration/testing)
     [HttpPost("check-policy")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> CheckPolicy([FromBody] PolicyCheckRequest request)
     {
         var fallbackUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
