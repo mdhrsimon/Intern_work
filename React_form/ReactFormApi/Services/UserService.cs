@@ -1,3 +1,5 @@
+using System.Linq.Expressions;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using ReactFormApi.Constants;
 using ReactFormApi.Data;
@@ -9,11 +11,49 @@ namespace ReactFormApi.Services;
 public class UserService
 {
     private readonly AppDbContext _context;
+    private readonly UserManager<ApplicationUser> _userManager;
 
-    public UserService(AppDbContext context)
+    public UserService(AppDbContext context, UserManager<ApplicationUser> userManager)
     {
         _context = context;
+        _userManager = userManager;
     }
+
+    private static readonly Expression<Func<User, UserResponse>> UserResponseProjection = u => new UserResponse
+    {
+        Id = u.Id,
+        FullName = u.ApplicationUser != null ? (u.ApplicationUser.FullName ?? u.FullName) : u.FullName,
+        Email = u.ApplicationUser != null ? (u.ApplicationUser.Email ?? u.Email) : u.Email,
+        Phone = u.Phone,
+        DateOfBirth = u.DateOfBirth,
+        Address = u.Address,
+        Gender = u.Gender,
+        Education = u.Education.Select(e => new EducationResponse
+        {
+            Id = e.Id,
+            Degree = e.Degree,
+            Institute = e.Institute,
+            YearPassed = e.YearPassed
+        }).ToList()
+    };
+
+    private static UserResponse MapToResponse(User u) => new()
+    {
+        Id = u.Id,
+        FullName = u.ApplicationUser != null ? (u.ApplicationUser.FullName ?? u.FullName) : u.FullName,
+        Email = u.ApplicationUser != null ? (u.ApplicationUser.Email ?? u.Email) : u.Email,
+        Phone = u.Phone,
+        DateOfBirth = u.DateOfBirth,
+        Address = u.Address,
+        Gender = u.Gender,
+        Education = u.Education.Select(e => new EducationResponse
+        {
+            Id = e.Id,
+            Degree = e.Degree,
+            Institute = e.Institute,
+            YearPassed = e.YearPassed
+        }).ToList()
+    };
 
     public async Task<PagedUsersResult> GetUsersAsync(
         int page = 1,
@@ -25,7 +65,7 @@ public class UserService
         if (pageSize < 1) pageSize = 5;
         if (pageSize > 50) pageSize = 50;
 
-        IQueryable<User> query = _context.Users.Include(u => u.Education);
+        IQueryable<User> query = _context.Users;
 
         if (currentUserRole != RoleConstants.Admin)
         {
@@ -50,6 +90,7 @@ public class UserService
         var items = await query
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
+            .Select(UserResponseProjection)
             .ToListAsync();
 
         return new PagedUsersResult
@@ -63,24 +104,25 @@ public class UserService
         };
     }
 
-    public async Task<UserServiceResult<User>> GetUserByIdAsync(
+    public async Task<UserServiceResult<UserResponse>> GetUserByIdAsync(
         int id,
         string? currentUserId,
         string? currentUserRole)
     {
         var user = await _context.Users
             .Include(u => u.Education)
+            .Include(u => u.ApplicationUser)
             .FirstOrDefaultAsync(u => u.Id == id);
 
         if (user == null)
-            return UserServiceResult<User>.Fail(404, $"User with id {id} was not found.");
+            return UserServiceResult<UserResponse>.Fail(404, $"User with id {id} was not found.");
 
         if (currentUserRole == RoleConstants.Admin)
-            return UserServiceResult<User>.Ok(user);
+            return UserServiceResult<UserResponse>.Ok(MapToResponse(user));
 
         // For Staff/Teacher: check if student is enrolled in caller's classes
         if (string.IsNullOrEmpty(user.ApplicationUserId))
-            return UserServiceResult<User>.Fail(403, "Access denied. You can only view submissions of students enrolled in your classes.");
+            return UserServiceResult<UserResponse>.Fail(403, "Access denied. You can only view submissions of students enrolled in your classes.");
 
         var staffClassIds = _context.ClassEnrollments
             .Where(ce => ce.ApplicationUserId == currentUserId &&
@@ -93,33 +135,44 @@ public class UserService
                             staffClassIds.Contains(ce.ClassChannelId));
 
         if (!isAllowed)
-            return UserServiceResult<User>.Fail(403, "Access denied. You can only view submissions of students enrolled in your classes.");
+            return UserServiceResult<UserResponse>.Fail(403, "Access denied. You can only view submissions of students enrolled in your classes.");
 
-        return UserServiceResult<User>.Ok(user);
+        return UserServiceResult<UserResponse>.Ok(MapToResponse(user));
     }
 
-    public async Task<User?> GetMySubmissionAsync(string accountId)
+    public async Task<UserResponse?> GetMySubmissionAsync(string accountId)
     {
         return await _context.Users
-            .Include(u => u.Education)
-            .FirstOrDefaultAsync(u => u.ApplicationUserId == accountId);
+            .Where(u => u.ApplicationUserId == accountId)
+            .Select(UserResponseProjection)
+            .FirstOrDefaultAsync();
     }
 
-    public async Task<UserServiceResult<User>> CreateUserAsync(CreateUserRequest request, string? accountId)
+    public async Task<UserServiceResult<UserResponse>> CreateUserAsync(CreateUserRequest request, string? accountId)
     {
+        string fullName = string.Empty;
+        string email = string.Empty;
+
         if (!string.IsNullOrEmpty(accountId))
         {
             var alreadyExists = await _context.Users.AnyAsync(u => u.ApplicationUserId == accountId);
             if (alreadyExists)
             {
-                return UserServiceResult<User>.Fail(409, "A submission already exists for this account.");
+                return UserServiceResult<UserResponse>.Fail(409, "A submission already exists for this account.");
+            }
+
+            var account = await _userManager.FindByIdAsync(accountId);
+            if (account != null)
+            {
+                fullName = account.FullName ?? string.Empty;
+                email = account.Email ?? string.Empty;
             }
         }
 
         var user = new User
         {
-            FullName = request.FullName.Trim(),
-            Email = request.Email.Trim(),
+            FullName = fullName,
+            Email = email,
             Phone = request.Phone.Trim(),
             DateOfBirth = request.DateOfBirth.Trim(),
             Address = request.Address.Trim(),
@@ -141,13 +194,13 @@ public class UserService
         }
         catch (DbUpdateException)
         {
-            return UserServiceResult<User>.Fail(409, "A submission already exists for this account.");
+            return UserServiceResult<UserResponse>.Fail(409, "A submission already exists for this account.");
         }
 
-        return UserServiceResult<User>.Ok(user);
+        return UserServiceResult<UserResponse>.Ok(MapToResponse(user));
     }
 
-    public async Task<UserServiceResult<User>> UpdateUserAsync(
+    public async Task<UserServiceResult<UserResponse>> UpdateUserAsync(
         int id,
         UpdateUserRequest request,
         string? currentUserId,
@@ -155,15 +208,16 @@ public class UserService
     {
         var user = await _context.Users
             .Include(u => u.Education)
+            .Include(u => u.ApplicationUser)
             .FirstOrDefaultAsync(u => u.Id == id);
 
         if (user == null)
-            return UserServiceResult<User>.Fail(404, $"User with id {id} was not found.");
+            return UserServiceResult<UserResponse>.Fail(404, $"User with id {id} was not found.");
 
         if (currentUserRole != RoleConstants.Admin)
         {
             if (string.IsNullOrEmpty(user.ApplicationUserId))
-                return UserServiceResult<User>.Fail(403, "Access denied. You can only edit submissions of students enrolled in your classes.");
+                return UserServiceResult<UserResponse>.Fail(403, "Access denied. You can only edit submissions of students enrolled in your classes.");
 
             var staffClassIds = _context.ClassEnrollments
                 .Where(ce => ce.ApplicationUserId == currentUserId &&
@@ -176,11 +230,9 @@ public class UserService
                                 staffClassIds.Contains(ce.ClassChannelId));
 
             if (!isAllowed)
-                return UserServiceResult<User>.Fail(403, "Access denied. You can only edit submissions of students enrolled in your classes.");
+                return UserServiceResult<UserResponse>.Fail(403, "Access denied. You can only edit submissions of students enrolled in your classes.");
         }
 
-        user.FullName = request.FullName.Trim();
-        user.Email = request.Email.Trim();
         user.Phone = request.Phone.Trim();
         user.DateOfBirth = request.DateOfBirth.Trim();
         user.Address = request.Address.Trim();
@@ -200,20 +252,19 @@ public class UserService
         }).ToList();
 
         await _context.SaveChangesAsync();
-        return UserServiceResult<User>.Ok(user);
+        return UserServiceResult<UserResponse>.Ok(MapToResponse(user));
     }
 
-    public async Task<UserServiceResult<User>> UpdateMySubmissionAsync(string accountId, UpdateUserRequest request)
+    public async Task<UserServiceResult<UserResponse>> UpdateMySubmissionAsync(string accountId, UpdateUserRequest request)
     {
         var user = await _context.Users
             .Include(u => u.Education)
+            .Include(u => u.ApplicationUser)
             .FirstOrDefaultAsync(u => u.ApplicationUserId == accountId);
 
         if (user == null)
-            return UserServiceResult<User>.Fail(404, "No submission found for this account.");
+            return UserServiceResult<UserResponse>.Fail(404, "No submission found for this account.");
 
-        user.FullName = request.FullName.Trim();
-        user.Email = request.Email.Trim();
         user.Phone = request.Phone.Trim();
         user.DateOfBirth = request.DateOfBirth.Trim();
         user.Address = request.Address.Trim();
@@ -233,7 +284,7 @@ public class UserService
         }).ToList();
 
         await _context.SaveChangesAsync();
-        return UserServiceResult<User>.Ok(user);
+        return UserServiceResult<UserResponse>.Ok(MapToResponse(user));
     }
 
     public async Task<bool> DeleteUserByIdAsync(int id)

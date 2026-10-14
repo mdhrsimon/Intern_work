@@ -7,10 +7,28 @@ public class EducationDto
     public string YearPassed { get; set; } = string.Empty;
 }
 
-public class CreateUserRequest
+public class EducationResponse
 {
+    public int Id { get; set; }
+    public string Degree { get; set; } = string.Empty;
+    public string Institute { get; set; } = string.Empty;
+    public string YearPassed { get; set; } = string.Empty;
+}
+
+public class UserResponse
+{
+    public int Id { get; set; }
     public string FullName { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
+    public string Phone { get; set; } = string.Empty;
+    public string DateOfBirth { get; set; } = string.Empty;
+    public string Address { get; set; } = string.Empty;
+    public string Gender { get; set; } = string.Empty;
+    public List<EducationResponse> Education { get; set; } = new();
+}
+
+public class CreateUserRequest
+{
     public string Phone { get; set; } = string.Empty;
     public string DateOfBirth { get; set; } = string.Empty;
     public string Address { get; set; } = string.Empty;
@@ -20,8 +38,6 @@ public class CreateUserRequest
 
 public class UpdateUserRequest
 {
-    public string FullName { get; set; } = string.Empty;
-    public string Email { get; set; } = string.Empty;
     public string Phone { get; set; } = string.Empty;
     public string DateOfBirth { get; set; } = string.Empty;
     public string Address { get; set; } = string.Empty;

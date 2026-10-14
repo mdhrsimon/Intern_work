@@ -5,7 +5,7 @@ import {
   useFormContext,
 } from "react-hook-form";
 
-import type { User } from "../types/user";
+import type { CreateUserPayload } from "../types/user";
 import FormField from "./FormField";
 
 const EducationForm = () => {
@@ -13,7 +13,7 @@ const EducationForm = () => {
     control,
     register,
     formState: { errors },
-  } = useFormContext<User>();
+  } = useFormContext<CreateUserPayload>();
 
   const { fields, append, remove } = useFieldArray({
     control,

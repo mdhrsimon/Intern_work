@@ -1,4 +1,5 @@
 export interface Education {
+  id?: number;
   degree: string;
   institute: string;
   yearPassed: string;
@@ -13,13 +14,29 @@ export interface User {
   address: string;
   gender: string;
   education: Education[];
-  applicationUserId?: string | null;
 }
- export interface PaginatedUsers{
+
+export interface CreateUserPayload {
+  phone: string;
+  dateOfBirth: string;
+  address: string;
+  gender: string;
+  education: Education[];
+}
+
+export interface UpdateUserPayload {
+  phone: string;
+  dateOfBirth: string;
+  address: string;
+  gender: string;
+  education: Education[];
+}
+
+export interface PaginatedUsers {
   items: User[];
-  page:number;
-  pageSize:number;
+  page: number;
+  pageSize: number;
   totalCount: number;
   totalPages: number;
   hasMore: boolean;
- }
+}

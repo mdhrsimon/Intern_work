@@ -14,7 +14,7 @@ const PAGE_SIZE = 10;
 export const accountApi = createApi({
   reducerPath: "accountApi",
   baseQuery: baseQueryWithReauth,
-  tagTypes: ["Accounts"],
+  tagTypes: ["Accounts", "Users"],
   endpoints: (builder) => ({
     getAccounts: builder.query<
       PaginatedAccounts,
@@ -71,6 +71,7 @@ export const accountApi = createApi({
       invalidatesTags: (_r, _e, { id }) => [
         { type: "Accounts", id },
         { type: "Accounts", id: "LIST" },
+        "Users",
       ],
     }),
 

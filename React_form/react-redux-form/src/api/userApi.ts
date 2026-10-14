@@ -1,5 +1,5 @@
 import { createApi } from "@reduxjs/toolkit/query/react";
-import type { User, PaginatedUsers } from "../types/user";
+import type { User, PaginatedUsers, CreateUserPayload, UpdateUserPayload } from "../types/user";
 import { baseQueryWithReauth } from "./baseQueryWithReauth";
 
 const PAGE_SIZE = 5;
@@ -46,30 +46,30 @@ export const userApi = createApi({
       }
     ),
 
-    createUser: builder.mutation<User, User>({
-      query: (user) => ({
+    createUser: builder.mutation<User, CreateUserPayload>({
+      query: (body) => ({
         url: "users",
         method: "POST",
-        body: user,
+        body,
       }),
 
       invalidatesTags: ["Users"],
     }),
 
-    updateUser: builder.mutation<User, User>({
-      query: (user) => ({
-        url: `users/${user.id}`,
+    updateUser: builder.mutation<User, { id: number | string } & UpdateUserPayload>({
+      query: ({ id, ...body }) => ({
+        url: `users/${id}`,
         method: "PUT",
-        body: user,
+        body,
       }),
       invalidatesTags: ["Users"],
     }),
 
-    updateMySubmission: builder.mutation<User, Partial<User>>({
-      query: (user) => ({
+    updateMySubmission: builder.mutation<User, UpdateUserPayload>({
+      query: (body) => ({
         url: "users/me",
         method: "PUT",
-        body: user,
+        body,
       }),
       invalidatesTags: ["Users"],
     }),

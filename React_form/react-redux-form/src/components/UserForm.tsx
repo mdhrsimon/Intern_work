@@ -38,7 +38,9 @@ import {
   useUpdateMySubmissionMutation,
   useGetMySubmissionQuery,
 } from "../api/userApi";
-import type { User } from "../types/user";
+import type { User, CreateUserPayload } from "../types/user";
+import { useAppSelector } from "../redux/hooks";
+import { useMeQuery } from "../api/authApi";
 
 import { Button } from "@/components/ui/button";
 
@@ -63,34 +65,63 @@ const UserForm = ({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const isStudent = getRole() === ROLES.STUDENT;
 
+  const authUser = useAppSelector((state) => state.auth.user);
+  const { data: meData } = useMeQuery();
+
   const { data: mySubmission } = useGetMySubmissionQuery(undefined, {
     skip: !isStudent || !!initialUser,
   });
 
   const effectiveIsEdit = isEdit || (isStudent && !!mySubmission);
 
-  const methods = useForm<User>({
-  defaultValues: initialUser
-    ? {
-        ...initialUser,
-        education: initialUser.education ?? [],
-      }
-    : {
-        fullName: "",
-        email: "",
-        phone: "",
-        dateOfBirth: "",
-        address: "",
-        gender: "",
-        education: [],
-      },
-});
+  const displayFullName =
+    initialUser?.fullName ||
+    mySubmission?.fullName ||
+    meData?.fullName ||
+    authUser?.fullName ||
+    "";
+
+  const displayEmail =
+    initialUser?.email ||
+    mySubmission?.email ||
+    meData?.email ||
+    authUser?.email ||
+    "";
+
+  const methods = useForm<CreateUserPayload>({
+    defaultValues: initialUser
+      ? {
+          phone: initialUser.phone ?? "",
+          dateOfBirth: initialUser.dateOfBirth ?? "",
+          address: initialUser.address ?? "",
+          gender: initialUser.gender ?? "",
+          education: initialUser.education ?? [],
+        }
+      : {
+          phone: "",
+          dateOfBirth: "",
+          address: "",
+          gender: "",
+          education: [],
+        },
+  });
 
   useEffect(() => {
     if (isStudent && mySubmission && !initialUser) {
       methods.reset({
-        ...mySubmission,
+        phone: mySubmission.phone ?? "",
+        dateOfBirth: mySubmission.dateOfBirth ?? "",
+        address: mySubmission.address ?? "",
+        gender: mySubmission.gender ?? "",
         education: mySubmission.education ?? [],
+      });
+    } else if (initialUser) {
+      methods.reset({
+        phone: initialUser.phone ?? "",
+        dateOfBirth: initialUser.dateOfBirth ?? "",
+        address: initialUser.address ?? "",
+        gender: initialUser.gender ?? "",
+        education: initialUser.education ?? [],
       });
     }
   }, [isStudent, mySubmission, initialUser, methods]);
@@ -103,45 +134,58 @@ const UserForm = ({
   } = methods;
 
   const [createUser, { isLoading: isCreating }] =
-  useCreateUserMutation();
+    useCreateUserMutation();
 
   const [updateUser, { isLoading: isUpdating }] =
-  useUpdateUserMutation();
+    useUpdateUserMutation();
 
   const [updateMySubmission, { isLoading: isUpdatingMy }] =
-  useUpdateMySubmissionMutation();
+    useUpdateMySubmissionMutation();
 
   const isLoading = isCreating || isUpdating || isUpdatingMy;
 
-  const onSubmit = async (data: User) => {
-  setSubmitError(null);
-  try {
-    if (effectiveIsEdit) {
-      if (isStudent) {
-        await updateMySubmission(data).unwrap();
-        navigate("/my-submission");
-      } else if (initialUser?.id != null) {
-        await updateUser({
-          ...data,
-          id: initialUser.id,
-        }).unwrap();
-        navigate("/students");
-      }
-    } else {
-      await createUser(data).unwrap();
+  const onSubmit = async (data: CreateUserPayload) => {
+    setSubmitError(null);
+    const payload: CreateUserPayload = {
+      phone: data.phone.trim(),
+      dateOfBirth: data.dateOfBirth.trim(),
+      address: data.address.trim(),
+      gender: data.gender,
+      education: (data.education ?? []).map((e) => ({
+        id: e.id,
+        degree: e.degree.trim(),
+        institute: e.institute.trim(),
+        yearPassed: String(e.yearPassed).trim(),
+      })),
+    };
 
-      if (isStudent) {
-        navigate("/my-submission");
+    try {
+      if (effectiveIsEdit) {
+        if (isStudent) {
+          await updateMySubmission(payload).unwrap();
+          navigate("/my-submission");
+        } else if (initialUser?.id != null) {
+          await updateUser({
+            id: initialUser.id,
+            ...payload,
+          }).unwrap();
+          navigate("/students");
+        }
       } else {
-        navigate("/students");
-      }
-    }   
-  } catch (err: any) {
-    const msg = err?.data?.message || err?.message || "Error saving user information.";
-    setSubmitError(msg);
-    console.error("Error saving user:", err);
-  }
-};
+        await createUser(payload).unwrap();
+
+        if (isStudent) {
+          navigate("/my-submission");
+        } else {
+          navigate("/students");
+        }
+      }   
+    } catch (err: any) {
+      const msg = err?.data?.message || err?.message || "Error saving user information.";
+      setSubmitError(msg);
+      console.error("Error saving user:", err);
+    }
+  };
 
   return (
     <FormProvider {...methods}>
@@ -177,38 +221,28 @@ const UserForm = ({
             <div className="space-y-6">
     
 
-              {/* Full Name + Email */}
+              {/* Full Name + Email (Read-only, managed by account) */}
               <div className="grid gap-6 md:grid-cols-2">
 
-                <FormField
-                  label="Full Name"
-                  error={errors.fullName?.message}
-                >
+                <FormField label="Full Name">
                   <Input
                     type="text"
-                    placeholder="Enter your full name"
-                    className="h-11 text-base bg-gray-50/50"
-                    {...register("fullName", {
-                      required: "Name is required",
-                    })}
+                    value={displayFullName}
+                    readOnly
+                    disabled
+                    placeholder="Name managed by account"
+                    className="h-11 text-base bg-slate-100 text-slate-700 cursor-not-allowed border-slate-200 select-none"
                   />
                 </FormField>
 
-                <FormField
-                  label="Email"
-                  error={errors.email?.message}
-                >
+                <FormField label="Email">
                   <Input
                     type="email"
-                    placeholder="example@email.com"
-                    className="h-11 text-base bg-gray-50/50"
-                    {...register("email", {
-                      required: "Email is required",
-                      pattern: {
-                        value: /^\S+@\S+\.\S+$/,
-                        message: "Enter a valid email",
-                      },
-                    })}
+                    value={displayEmail}
+                    readOnly
+                    disabled
+                    placeholder="Email managed by account"
+                    className="h-11 text-base bg-slate-100 text-slate-700 cursor-not-allowed border-slate-200 select-none"
                   />
                 </FormField>
 

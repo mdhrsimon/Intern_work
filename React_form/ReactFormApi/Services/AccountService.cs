@@ -178,14 +178,20 @@ public class AccountService
             return AccountServiceResult.Fail(400, "You cannot deactivate your own administrative account.");
         }
 
-        if (!string.IsNullOrWhiteSpace(request.Email))
+        var trimmedEmail = request.Email?.Trim();
+        var trimmedFullName = request.FullName?.Trim();
+
+        var emailChanged = !string.IsNullOrWhiteSpace(trimmedEmail) && trimmedEmail != user.Email;
+        var fullNameChanged = !string.IsNullOrWhiteSpace(trimmedFullName) && trimmedFullName != user.FullName;
+
+        if (emailChanged)
         {
-            user.Email = request.Email.Trim();
-            user.UserName = request.Email.Trim();
+            user.Email = trimmedEmail;
+            user.UserName = trimmedEmail;
         }
 
-        if (!string.IsNullOrWhiteSpace(request.FullName))
-            user.FullName = request.FullName.Trim();
+        if (fullNameChanged)
+            user.FullName = trimmedFullName;
 
         var previousIsActive = user.IsActive;
         if (request.IsActive.HasValue)
@@ -199,7 +205,36 @@ public class AccountService
                 return AccountServiceResult.Fail(400, "Password update failed", passResult.Errors.Select(e => e.Description));
         }
 
-        await _userManager.UpdateAsync(user);
+        if (emailChanged || fullNameChanged)
+        {
+            var linkedUser = await _context.Users.FirstOrDefaultAsync(u => u.ApplicationUserId == user.Id);
+            if (linkedUser != null)
+            {
+                if (emailChanged)
+                    linkedUser.Email = trimmedEmail!;
+                if (fullNameChanged)
+                    linkedUser.FullName = trimmedFullName!;
+            }
+        }
+
+        var updateResult = await _userManager.UpdateAsync(user);
+        if (!updateResult.Succeeded)
+        {
+            var isDuplicate = updateResult.Errors.Any(e =>
+                e.Code.Contains("Duplicate", StringComparison.OrdinalIgnoreCase) ||
+                e.Description.Contains("already taken", StringComparison.OrdinalIgnoreCase) ||
+                e.Description.Contains("already in use", StringComparison.OrdinalIgnoreCase));
+
+            return AccountServiceResult.Fail(
+                isDuplicate ? 409 : 400,
+                isDuplicate ? "Email is already in use." : "Account update failed.",
+                updateResult.Errors.Select(e => e.Description));
+        }
+
+        if (_context.ChangeTracker.HasChanges())
+        {
+            await _context.SaveChangesAsync();
+        }
 
         if (request.IsActive.HasValue && request.IsActive.Value != previousIsActive)
         {
