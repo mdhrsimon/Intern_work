@@ -548,7 +548,7 @@ namespace ReactFormApi.Migrations
                     b.ToTable("SubmissionFiles");
                 });
 
-            modelBuilder.Entity("User", b =>
+            modelBuilder.Entity("ReactFormApi.Models.User", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -721,7 +721,7 @@ namespace ReactFormApi.Migrations
 
             modelBuilder.Entity("ReactFormApi.Models.Education", b =>
                 {
-                    b.HasOne("User", null)
+                    b.HasOne("ReactFormApi.Models.User", null)
                         .WithMany("Education")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -750,6 +750,16 @@ namespace ReactFormApi.Migrations
                     b.Navigation("AssignmentSubmission");
                 });
 
+            modelBuilder.Entity("ReactFormApi.Models.User", b =>
+                {
+                    b.HasOne("ReactFormApi.Models.ApplicationUser", "ApplicationUser")
+                        .WithOne()
+                        .HasForeignKey("ReactFormApi.Models.User", "ApplicationUserId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("ApplicationUser");
+                });
+
             modelBuilder.Entity("ReactFormApi.Models.Assignment", b =>
                 {
                     b.Navigation("Attachments");
@@ -767,7 +777,7 @@ namespace ReactFormApi.Migrations
                     b.Navigation("Enrollments");
                 });
 
-            modelBuilder.Entity("User", b =>
+            modelBuilder.Entity("ReactFormApi.Models.User", b =>
                 {
                     b.Navigation("Education");
                 });

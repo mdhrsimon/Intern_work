@@ -1,4 +1,4 @@
-﻿using ReactFormApi.Models;
+namespace ReactFormApi.Models;
 
 public class User
 {
@@ -13,4 +13,5 @@ public class User
 
     /// <summary>Identity user id of the account that submitted this form.</summary>
     public string? ApplicationUserId { get; set; }
-}
+    public ApplicationUser? ApplicationUser { get; set; }
+}

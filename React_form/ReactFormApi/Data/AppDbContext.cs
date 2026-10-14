@@ -40,6 +40,20 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.HasIndex(u => u.ApplicationUserId)
                 .IsUnique()
                 .HasFilter("[ApplicationUserId] IS NOT NULL");
+
+            entity.HasOne(u => u.ApplicationUser)
+                .WithOne()
+                .HasForeignKey<User>(u => u.ApplicationUserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Education configuration
+        builder.Entity<Education>(entity =>
+        {
+            entity.HasOne<User>()
+                .WithMany(u => u.Education)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         // ClassEnrollment configuration
