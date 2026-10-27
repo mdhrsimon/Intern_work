@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { useAppDispatch } from "../redux/hooks";
+import { useAppDispatch, useAppSelector } from "../redux/hooks";
 import { useLoginMutation } from "../api/authApi";
-import { setCredentials } from "../redux/authSlice";
+import { setCredentials, clearSessionNotice } from "../redux/authSlice";
 import { parseRole, homePathForRole, isLoggedIn, getRole } from "../lib/permissions";
 import { getApiErrorMessage } from "../utils/getApiErrorMessage";
 import { Button } from "@/components/ui/button";
@@ -35,6 +35,7 @@ const LoginPage = () => {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [validationError, setValidationError] = useState("");
+  const sessionNotice = useAppSelector((state) => state.auth.sessionNotice);
 
   const [login, { isLoading }] = useLoginMutation();
 
@@ -49,6 +50,7 @@ const LoginPage = () => {
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setValidationError("");
+    dispatch(clearSessionNotice());
 
     const trimmedEmail = email.trim();
     if (!trimmedEmail) {
@@ -142,6 +144,17 @@ const LoginPage = () => {
             </CardHeader>
 
             <CardContent className="p-6 sm:p-8 space-y-6">
+              {/* Session Notice Alert */}
+              {sessionNotice && !validationError && (
+                <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50/90 p-4 text-sm text-amber-800 animate-in fade-in-50">
+                  <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="font-semibold">Session Notice</p>
+                    <p className="text-amber-700 mt-0.5">{sessionNotice}</p>
+                  </div>
+                </div>
+              )}
+
               {/* Error Alert */}
               {validationError && (
                 <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50/90 p-4 text-sm text-red-800 animate-in fade-in-50">

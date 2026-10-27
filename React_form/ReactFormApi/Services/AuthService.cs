@@ -166,6 +166,11 @@ public class AuthService
 
     public async Task<AuthResponse> IssueAuthTokensAsync(ApplicationUser user, HttpResponse response)
     {
+        if (string.IsNullOrEmpty(user.SecurityStamp))
+        {
+            await _userManager.UpdateSecurityStampAsync(user);
+        }
+
         var roles = await _userManager.GetRolesAsync(user);
         var role = RoleHelper.GetPrimaryRole(roles);
 

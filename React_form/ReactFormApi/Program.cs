@@ -56,6 +56,8 @@ builder.Services
     .AddDefaultTokenProviders();
 
 // Register application and domain services via Dependency Injection
+builder.Services.AddMemoryCache();
+builder.Services.AddScoped<UserStateCache>();
 builder.Services.AddScoped<CookieService>();
 builder.Services.AddScoped<JwtTokenService>();
 builder.Services.AddScoped<RefreshTokenService>();
@@ -112,6 +114,40 @@ builder.Services
                 }
 
                 return Task.CompletedTask;
+            },
+            OnTokenValidated = async context =>
+            {
+                var principal = context.Principal;
+                var userId = principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                var role = principal?.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+                var stamp = principal?.FindFirst("security_stamp")?.Value;
+
+                if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(role) || string.IsNullOrEmpty(stamp))
+                {
+                    context.Fail("Missing required claims or security stamp.");
+                    return;
+                }
+
+                var userStateCache = context.HttpContext.RequestServices.GetRequiredService<UserStateCache>();
+                var userState = await userStateCache.GetAsync(userId);
+
+                if (userState == null || !userState.IsActive)
+                {
+                    context.Fail("User is inactive or not found.");
+                    return;
+                }
+
+                if (!string.Equals(userState.PrimaryRole, role, StringComparison.OrdinalIgnoreCase))
+                {
+                    context.Fail("User role has changed.");
+                    return;
+                }
+
+                if (string.IsNullOrEmpty(userState.SecurityStamp) || !string.Equals(userState.SecurityStamp, stamp, StringComparison.Ordinal))
+                {
+                    context.Fail("Security stamp mismatch or expired.");
+                    return;
+                }
             }
         };
     });

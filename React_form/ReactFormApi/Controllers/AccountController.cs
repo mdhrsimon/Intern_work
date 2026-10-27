@@ -69,11 +69,12 @@ public class AccountsController : ControllerBase
     [HttpPatch("{id}/role")]
     public async Task<IActionResult> ChangeRole(string id, [FromBody] ChangeRoleRequest request)
     {
-        var updated = await _accountService.ChangeRoleAsync(id, request.Role);
-        if (updated == null)
-            return NotFound();
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var result = await _accountService.ChangeRoleAsync(id, currentUserId, request.Role);
+        if (!result.Success)
+            return StatusCode(result.StatusCode, new { message = result.Message, errors = result.Errors });
 
-        return Ok(updated);
+        return Ok(result.Account);
     }
 
     // PATCH: api/accounts/{id}/active

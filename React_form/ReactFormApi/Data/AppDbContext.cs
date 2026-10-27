@@ -37,6 +37,13 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         // User (Form Submissions) configuration
         builder.Entity<User>(entity =>
         {
+            entity.Property(u => u.FullName).HasMaxLength(150);
+            entity.Property(u => u.Email).HasMaxLength(256);
+            entity.Property(u => u.Phone).HasMaxLength(20);
+            entity.Property(u => u.DateOfBirth).HasMaxLength(10);
+            entity.Property(u => u.Address).HasMaxLength(300);
+            entity.Property(u => u.Gender).HasMaxLength(20);
+
             entity.HasIndex(u => u.ApplicationUserId)
                 .IsUnique()
                 .HasFilter("[ApplicationUserId] IS NOT NULL");
@@ -50,6 +57,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         // Education configuration
         builder.Entity<Education>(entity =>
         {
+            entity.Property(e => e.Degree).HasMaxLength(100);
+            entity.Property(e => e.Institute).HasMaxLength(150);
+            entity.Property(e => e.YearPassed).HasMaxLength(4);
+
             entity.HasOne<User>()
                 .WithMany(u => u.Education)
                 .HasForeignKey(e => e.UserId)

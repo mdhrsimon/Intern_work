@@ -39,11 +39,13 @@ export const AssignUserModal: React.FC<AssignUserModalProps> = ({
   });
 
   const availableUsers = accountsData?.items || [];
-  const filteredUsers = availableUsers.filter(
+  const assignableUsers = availableUsers.filter((u) => u.role !== ROLES.ADMIN);
+  const filteredUsers = assignableUsers.filter(
     (u) =>
       u.fullName.toLowerCase().includes(userSearch.toLowerCase()) ||
       u.email.toLowerCase().includes(userSearch.toLowerCase())
   );
+  const selectedUser = availableUsers.find((u) => u.id === selectedUserId);
 
   if (!isOpen || !classChannel) return null;
 
@@ -82,7 +84,7 @@ export const AssignUserModal: React.FC<AssignUserModalProps> = ({
               <UserPlus className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-slate-900"></h3>
+              <h3 className="text-lg font-bold text-slate-900">Assign Member</h3>
               <p className="text-xs text-slate-500">
                 Class: <span className="font-semibold text-purple-700">{classChannel.name}</span> (ID: {classChannel.id})
               </p>
@@ -107,7 +109,7 @@ export const AssignUserModal: React.FC<AssignUserModalProps> = ({
           {/* Search & Select User */}
           <div className="space-y-1.5">
             <Label className="text-xs font-semibold text-slate-700">
-              Select Active User
+              Select Active User (Students & Teachers only)
             </Label>
             <div className="relative mb-2">
               <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
@@ -123,7 +125,7 @@ export const AssignUserModal: React.FC<AssignUserModalProps> = ({
             <div className="max-h-40 overflow-y-auto rounded-md border border-slate-200 divide-y divide-slate-100">
               {filteredUsers.length === 0 ? (
                 <div className="p-3 text-center text-xs text-slate-400">
-                  No matching active users found
+                  No matching enrollable users found
                 </div>
               ) : (
                 filteredUsers.map((user) => {
@@ -159,35 +161,21 @@ export const AssignUserModal: React.FC<AssignUserModalProps> = ({
           {/* Role In Class */}
           <div className="space-y-1.5">
             <Label htmlFor="roleInClass" className="text-xs font-semibold text-slate-700">
-              Assigned Role In This Class
+              Allowed Class Role
             </Label>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setRoleInClass(ROLES.STAFF)}
-                className={`flex items-center justify-center gap-2 rounded-lg border p-3 text-xs font-semibold transition-all ${
-                  roleInClass === ROLES.STAFF
-                    ? "border-blue-500 bg-blue-50 text-blue-700 ring-1 ring-blue-500"
-                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-                }`}
-              >
+            {!selectedUser ? (
+              <p className="text-xs text-slate-400 italic">Select a user above to see their compatible class role.</p>
+            ) : selectedUser.role === ROLES.STAFF ? (
+              <div className="rounded-lg border border-blue-500 bg-blue-50 p-3 text-xs font-semibold text-blue-700 flex items-center gap-2">
                 <BookOpen className="h-4 w-4" />
-                <span>Teacher</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setRoleInClass(ROLES.STUDENT)}
-                className={`flex items-center justify-center gap-2 rounded-lg border p-3 text-xs font-semibold transition-all ${
-                  roleInClass === ROLES.STUDENT
-                    ? "border-emerald-500 bg-emerald-50 text-emerald-700 ring-1 ring-emerald-500"
-                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-                }`}
-              >
+                <span>Teacher (Staff Account)</span>
+              </div>
+            ) : (
+              <div className="rounded-lg border border-emerald-500 bg-emerald-50 p-3 text-xs font-semibold text-emerald-700 flex items-center gap-2">
                 <GraduationCap className="h-4 w-4" />
-                <span>Student</span>
-              </button>
-            </div>
+                <span>Student (Student Account)</span>
+              </div>
+            )}
           </div>
 
           <div className="mt-6 flex justify-end gap-3 pt-2 border-t border-slate-100">

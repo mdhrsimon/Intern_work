@@ -8,6 +8,7 @@ import {
 import { useAuthSession } from "../../hooks/useAuthSession";
 import type { AccountUser, AccountRole } from "../../types/account";
 import { ROLES } from "../../constants/roles";
+import { getApiErrorMessage } from "../../utils/getApiErrorMessage";
 import { ViewUserModal } from "./ViewUserModal";
 import { CreateUserModal } from "./CreateUserModal";
 import { EditUserModal } from "./EditUserModal";
@@ -152,8 +153,38 @@ export const UserManagementView: React.FC = () => {
       confirmText: "Delete Permanently",
       variant: "danger",
       action: async () => {
-        await deleteAccount(user.id).unwrap();
-        setConfirmConfig((prev) => ({ ...prev, isOpen: false }));
+        try {
+          await deleteAccount(user.id).unwrap();
+          setConfirmConfig((prev) => ({ ...prev, isOpen: false }));
+        } catch (err: unknown) {
+          const errMsg = getApiErrorMessage(err, "Failed to delete account.");
+          // Show 409 error and offer Deactivate instead
+          setConfirmConfig({
+            isOpen: true,
+            title: "Cannot Delete Account",
+            description: `${errMsg}\n\nWould you like to deactivate this user instead?`,
+            confirmText: "Deactivate instead",
+            variant: "warning",
+            action: async () => {
+              try {
+                await toggleActive({ id: user.id, isActive: false }).unwrap();
+                setConfirmConfig((prev) => ({ ...prev, isOpen: false }));
+              } catch (toggleErr: unknown) {
+                const toggleMsg = getApiErrorMessage(toggleErr, "Failed to deactivate account.");
+                setConfirmConfig({
+                  isOpen: true,
+                  title: "Deactivation Failed",
+                  description: toggleMsg,
+                  confirmText: "Close",
+                  variant: "danger",
+                  action: async () => {
+                    setConfirmConfig((prev) => ({ ...prev, isOpen: false }));
+                  },
+                });
+              }
+            },
+          });
+        }
       },
     });
   };

@@ -1,9 +1,19 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace ReactFormApi.DTOs.Users;
 
 public class EducationDto
 {
+    [Required]
+    [StringLength(100)]
     public string Degree { get; set; } = string.Empty;
+
+    [Required]
+    [StringLength(150)]
     public string Institute { get; set; } = string.Empty;
+
+    [Required]
+    [StringLength(4)]
     public string YearPassed { get; set; } = string.Empty;
 }
 
@@ -29,19 +39,43 @@ public class UserResponse
 
 public class CreateUserRequest
 {
+    [Required]
+    [StringLength(20)]
     public string Phone { get; set; } = string.Empty;
+
+    [Required]
+    [StringLength(10)]
     public string DateOfBirth { get; set; } = string.Empty;
+
+    [Required]
+    [StringLength(300)]
     public string Address { get; set; } = string.Empty;
+
+    [Required]
+    [StringLength(20)]
     public string Gender { get; set; } = string.Empty;
+
     public List<EducationDto> Education { get; set; } = new();
 }
 
 public class UpdateUserRequest
 {
+    [Required]
+    [StringLength(20)]
     public string Phone { get; set; } = string.Empty;
+
+    [Required]
+    [StringLength(10)]
     public string DateOfBirth { get; set; } = string.Empty;
+
+    [Required]
+    [StringLength(300)]
     public string Address { get; set; } = string.Empty;
+
+    [Required]
+    [StringLength(20)]
     public string Gender { get; set; } = string.Empty;
+
     public List<EducationDto> Education { get; set; } = new();
 }
 

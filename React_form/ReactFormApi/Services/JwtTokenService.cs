@@ -28,7 +28,8 @@ public class JwtTokenService
             new(ClaimTypes.NameIdentifier, user.Id),
             new(ClaimTypes.Name, user.FullName ?? user.Email ?? string.Empty),
             new(ClaimTypes.Email, user.Email ?? string.Empty),
-            new(ClaimTypes.Role, role)
+            new(ClaimTypes.Role, role),
+            new("security_stamp", user.SecurityStamp ?? string.Empty)
         };
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]!));

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using ReactFormApi.Constants;
 using ReactFormApi.Data;
 using ReactFormApi.DTOs.Accounts;
 using ReactFormApi.DTOs.Classes;
@@ -14,17 +15,20 @@ public class AccountService
     private readonly RoleManager<IdentityRole> _roleManager;
     private readonly AppDbContext _context;
     private readonly INotificationService _notificationService;
+    private readonly UserStateCache _userStateCache;
 
     public AccountService(
         UserManager<ApplicationUser> userManager,
         RoleManager<IdentityRole> roleManager,
         AppDbContext context,
-        INotificationService notificationService)
+        INotificationService notificationService,
+        UserStateCache userStateCache)
     {
         _userManager = userManager;
         _roleManager = roleManager;
         _context = context;
         _notificationService = notificationService;
+        _userStateCache = userStateCache;
     }
 
     public async Task<PagedAccountsResult> GetAccountsAsync(
@@ -178,6 +182,25 @@ public class AccountService
             return AccountServiceResult.Fail(400, "You cannot deactivate your own administrative account.");
         }
 
+        if (request.IsActive.HasValue && !request.IsActive.Value && await IsLastActiveAdminAsync(id))
+        {
+            return AccountServiceResult.Fail(400, "Cannot deactivate the last active administrator.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Role))
+        {
+            var requestedRole = RoleHelper.NormalizeRole(request.Role);
+            if (currentUserId == id && requestedRole != RoleConstants.Admin)
+            {
+                return AccountServiceResult.Fail(400, "You cannot change your own administrative role.");
+            }
+
+            if (requestedRole != RoleConstants.Admin && await IsLastActiveAdminAsync(id))
+            {
+                return AccountServiceResult.Fail(400, "Cannot demote the last active administrator.");
+            }
+        }
+
         var trimmedEmail = request.Email?.Trim();
         var trimmedFullName = request.FullName?.Trim();
 
@@ -203,6 +226,12 @@ public class AccountService
             var passResult = await _userManager.ResetPasswordAsync(user, token, request.Password);
             if (!passResult.Succeeded)
                 return AccountServiceResult.Fail(400, "Password update failed", passResult.Errors.Select(e => e.Description));
+
+            await _userManager.UpdateSecurityStampAsync(user);
+            user.RefreshToken = null;
+            user.RefreshTokenExpiryTime = null;
+            await _userManager.UpdateAsync(user);
+            _userStateCache.Invalidate(user.Id);
         }
 
         if (emailChanged || fullNameChanged)
@@ -238,6 +267,15 @@ public class AccountService
 
         if (request.IsActive.HasValue && request.IsActive.Value != previousIsActive)
         {
+            if (!request.IsActive.Value)
+            {
+                await _userManager.UpdateSecurityStampAsync(user);
+                user.RefreshToken = null;
+                user.RefreshTokenExpiryTime = null;
+                await _userManager.UpdateAsync(user);
+            }
+            _userStateCache.Invalidate(user.Id);
+
             await _notificationService.NotifyAllAdminsAsync(
                 NotificationType.UserStatusChanged,
                 $"Account {(request.IsActive.Value ? "Activated" : "Deactivated")}",
@@ -251,10 +289,22 @@ public class AccountService
         {
             var newRole = RoleHelper.NormalizeRole(request.Role);
             var currentRoles = await _userManager.GetRolesAsync(user);
-            await _userManager.RemoveFromRolesAsync(user, currentRoles);
-            if (!await _roleManager.RoleExistsAsync(newRole))
-                await _roleManager.CreateAsync(new IdentityRole(newRole));
-            await _userManager.AddToRoleAsync(user, newRole);
+            var oldRole = RoleHelper.GetPrimaryRole(currentRoles);
+
+            if (newRole != oldRole)
+            {
+                var conflictError = await CheckRoleChangeConflictsAsync(user, oldRole, newRole);
+                if (conflictError != null)
+                {
+                    return AccountServiceResult.Fail(409, conflictError);
+                }
+
+                var roleChangeResult = await PerformRoleChangeTransactionAsync(user, newRole);
+                if (roleChangeResult != null)
+                {
+                    return roleChangeResult;
+                }
+            }
         }
 
         var roles = await _userManager.GetRolesAsync(user);
@@ -276,19 +326,36 @@ public class AccountService
         return AccountServiceResult.Ok(MapToDto(user, role, userEnrollments));
     }
 
-    public async Task<AccountDto?> ChangeRoleAsync(string id, string requestedRole)
+    public async Task<AccountServiceResult> ChangeRoleAsync(string id, string? currentUserId, string requestedRole)
     {
         var user = await _userManager.FindByIdAsync(id);
-        if (user == null) return null;
+        if (user == null) return AccountServiceResult.Fail(404, "User not found.");
 
         var newRole = RoleHelper.NormalizeRole(requestedRole);
         var currentRoles = await _userManager.GetRolesAsync(user);
-        await _userManager.RemoveFromRolesAsync(user, currentRoles);
+        var oldRole = RoleHelper.GetPrimaryRole(currentRoles);
 
-        if (!await _roleManager.RoleExistsAsync(newRole))
-            await _roleManager.CreateAsync(new IdentityRole(newRole));
+        if (currentUserId == id && newRole != RoleConstants.Admin)
+        {
+            return AccountServiceResult.Fail(400, "You cannot change your own administrative role.");
+        }
 
-        await _userManager.AddToRoleAsync(user, newRole);
+        if (newRole != RoleConstants.Admin && await IsLastActiveAdminAsync(id))
+        {
+            return AccountServiceResult.Fail(400, "Cannot demote the last active administrator.");
+        }
+
+        var conflictError = await CheckRoleChangeConflictsAsync(user, oldRole, newRole);
+        if (conflictError != null)
+        {
+            return AccountServiceResult.Fail(409, conflictError);
+        }
+
+        var roleChangeResult = await PerformRoleChangeTransactionAsync(user, newRole);
+        if (roleChangeResult != null)
+        {
+            return roleChangeResult;
+        }
 
         var userEnrollments = await _context.ClassEnrollments
             .Include(e => e.ClassChannel)
@@ -303,7 +370,7 @@ public class AccountService
             })
             .ToListAsync();
 
-        return MapToDto(user, newRole, userEnrollments);
+        return AccountServiceResult.Ok(MapToDto(user, newRole, userEnrollments));
     }
 
     public async Task<AccountServiceResult> ToggleActiveAsync(string id, string? currentUserId, bool isActive)
@@ -313,11 +380,23 @@ public class AccountService
             return AccountServiceResult.Fail(400, "You cannot deactivate your own administrative account.");
         }
 
+        if (!isActive && await IsLastActiveAdminAsync(id))
+        {
+            return AccountServiceResult.Fail(400, "Cannot deactivate the last active administrator.");
+        }
+
         var user = await _userManager.FindByIdAsync(id);
         if (user == null) return AccountServiceResult.Fail(404, "User not found.");
 
         user.IsActive = isActive;
+        if (!isActive)
+        {
+            await _userManager.UpdateSecurityStampAsync(user);
+            user.RefreshToken = null;
+            user.RefreshTokenExpiryTime = null;
+        }
         await _userManager.UpdateAsync(user);
+        _userStateCache.Invalidate(user.Id);
 
         await _notificationService.NotifyAllAdminsAsync(
             NotificationType.UserStatusChanged,
@@ -353,14 +432,133 @@ public class AccountService
             return AccountServiceResult.Fail(400, "You cannot delete your own administrative account.");
         }
 
+        if (await IsLastActiveAdminAsync(id))
+        {
+            return AccountServiceResult.Fail(400, "Cannot delete the last active administrator.");
+        }
+
         var user = await _userManager.FindByIdAsync(id);
         if (user == null) return AccountServiceResult.Fail(404, "User not found.");
 
-        var result = await _userManager.DeleteAsync(user);
-        if (!result.Succeeded)
-            return AccountServiceResult.Fail(400, "Delete failed", result.Errors.Select(e => e.Description));
+        var assignmentsCreated = await _context.Assignments.CountAsync(a => a.CreatedByUserId == user.Id);
+        var submissions = await _context.AssignmentSubmissions.CountAsync(s => s.StudentUserId == user.Id);
+        var attachmentsUploaded = await _context.AssignmentAttachments.CountAsync(a => a.UploadedByUserId == user.Id);
 
+        if (assignmentsCreated > 0 || submissions > 0 || attachmentsUploaded > 0)
+        {
+            return AccountServiceResult.Fail(409, $"Cannot delete account: user has dependent academic records ({assignmentsCreated} assignments created, {submissions} submissions, {attachmentsUploaded} attachments uploaded). Deactivate the account instead to remove access while preserving academic history.");
+        }
+
+        using var transaction = await _context.Database.BeginTransactionAsync();
+        try
+        {
+            var result = await _userManager.DeleteAsync(user);
+            if (!result.Succeeded)
+            {
+                await transaction.RollbackAsync();
+                return AccountServiceResult.Fail(400, "Delete failed", result.Errors.Select(e => e.Description));
+            }
+
+            await transaction.CommitAsync();
+        }
+        catch (DbUpdateException)
+        {
+            await transaction.RollbackAsync();
+            return AccountServiceResult.Fail(409, "Cannot delete account because dependent records exist in the database. Deactivate the account instead.");
+        }
+
+        _userStateCache.Invalidate(id);
         return AccountServiceResult.NoContentResult();
+    }
+
+    private async Task<bool> IsLastActiveAdminAsync(string userId)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user == null || !user.IsActive) return false;
+        var roles = await _userManager.GetRolesAsync(user);
+        if (!roles.Contains(RoleConstants.Admin)) return false;
+
+        var allAdmins = await _userManager.GetUsersInRoleAsync(RoleConstants.Admin);
+        var activeOtherAdmins = allAdmins.Any(u => u.IsActive && u.Id != userId);
+        return !activeOtherAdmins;
+    }
+
+    private async Task<string?> CheckRoleChangeConflictsAsync(ApplicationUser user, string oldRole, string newRole)
+    {
+        if (oldRole == newRole) return null;
+
+        if (oldRole == RoleConstants.Staff && newRole != RoleConstants.Staff)
+        {
+            var hasAssignments = await _context.Assignments.AnyAsync(a => a.CreatedByUserId == user.Id);
+            var hasAttachments = await _context.AssignmentAttachments.AnyAsync(a => a.UploadedByUserId == user.Id);
+            if (hasAssignments || hasAttachments)
+            {
+                return "Cannot change role: user has existing teaching records (assignments or attachments created as teacher/staff).";
+            }
+        }
+        else if (oldRole == RoleConstants.Student && newRole != RoleConstants.Student)
+        {
+            var hasSubmissions = await _context.AssignmentSubmissions.AnyAsync(s => s.StudentUserId == user.Id);
+            if (hasSubmissions)
+            {
+                return "Cannot change role: user has existing academic submissions as a student.";
+            }
+        }
+
+        return null;
+    }
+
+    private async Task<AccountServiceResult?> PerformRoleChangeTransactionAsync(ApplicationUser user, string newRole)
+    {
+        using var transaction = await _context.Database.BeginTransactionAsync();
+        try
+        {
+            var currentRoles = await _userManager.GetRolesAsync(user);
+            var removeResult = await _userManager.RemoveFromRolesAsync(user, currentRoles);
+            if (!removeResult.Succeeded)
+            {
+                await transaction.RollbackAsync();
+                return AccountServiceResult.Fail(400, "Failed to remove previous roles.", removeResult.Errors.Select(e => e.Description));
+            }
+
+            if (!await _roleManager.RoleExistsAsync(newRole))
+                await _roleManager.CreateAsync(new IdentityRole(newRole));
+
+            var addResult = await _userManager.AddToRoleAsync(user, newRole);
+            if (!addResult.Succeeded)
+            {
+                await transaction.RollbackAsync();
+                return AccountServiceResult.Fail(400, "Failed to add new role.", addResult.Errors.Select(e => e.Description));
+            }
+
+            // Delete enrollments that no longer satisfy the rule
+            var enrollments = await _context.ClassEnrollments
+                .Where(e => e.ApplicationUserId == user.Id)
+                .ToListAsync();
+
+            var invalidEnrollments = enrollments.Where(e => !EnrollmentRules.IsValid(newRole, e.RoleInClass)).ToList();
+            if (invalidEnrollments.Count > 0)
+            {
+                _context.ClassEnrollments.RemoveRange(invalidEnrollments);
+                await _context.SaveChangesAsync();
+            }
+
+            await transaction.CommitAsync();
+
+            // Item 1 invalidation
+            await _userManager.UpdateSecurityStampAsync(user);
+            user.RefreshToken = null;
+            user.RefreshTokenExpiryTime = null;
+            await _userManager.UpdateAsync(user);
+            _userStateCache.Invalidate(user.Id);
+
+            return null;
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
     }
 
     private static AccountDto MapToDto(ApplicationUser user, string role, List<AssignedClassSummaryDto> assignedClasses)

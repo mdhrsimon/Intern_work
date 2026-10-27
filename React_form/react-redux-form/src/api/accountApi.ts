@@ -8,13 +8,14 @@ import type {
   AccountRole,
 } from "../types/account";
 import { baseQueryWithReauth } from "./baseQueryWithReauth";
+import { userApi } from "./userApi";
 
 const PAGE_SIZE = 10;
 
 export const accountApi = createApi({
   reducerPath: "accountApi",
   baseQuery: baseQueryWithReauth,
-  tagTypes: ["Accounts", "Users"],
+  tagTypes: ["Accounts"],
   endpoints: (builder) => ({
     getAccounts: builder.query<
       PaginatedAccounts,
@@ -71,8 +72,15 @@ export const accountApi = createApi({
       invalidatesTags: (_r, _e, { id }) => [
         { type: "Accounts", id },
         { type: "Accounts", id: "LIST" },
-        "Users",
       ],
+      async onQueryStarted(_args, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          dispatch(userApi.util.invalidateTags(["Users"]));
+        } catch {
+          // Mutation failed; do not invalidate
+        }
+      },
     }),
 
     changeRole: builder.mutation<AccountUser, ChangeRoleRequest>({

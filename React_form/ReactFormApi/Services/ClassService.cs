@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using ReactFormApi.Constants;
 using ReactFormApi.Data;
 using ReactFormApi.DTOs.Classes;
+using ReactFormApi.Helpers;
 using ReactFormApi.Models;
 
 namespace ReactFormApi.Services;
@@ -253,6 +254,14 @@ public class ClassService
         var user = await _userManager.FindByIdAsync(request.AccountId);
         if (user == null)
             return AssignMemberResult.Fail(404, "User was not found.");
+
+        var roles = await _userManager.GetRolesAsync(user);
+        var systemRole = RoleHelper.GetPrimaryRole(roles);
+
+        if (!EnrollmentRules.IsValid(systemRole, request.RoleInClass))
+        {
+            return AssignMemberResult.Fail(400, $"Cannot assign member: Account system role '{systemRole}' is not compatible with class role '{request.RoleInClass}'.");
+        }
 
         var existing = await _context.ClassEnrollments
             .FirstOrDefaultAsync(e => e.ClassChannelId == id && e.ApplicationUserId == request.AccountId);

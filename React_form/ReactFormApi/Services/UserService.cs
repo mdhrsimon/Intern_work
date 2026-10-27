@@ -70,15 +70,7 @@ public class UserService
         if (currentUserRole != RoleConstants.Admin)
         {
             // Scope Staff/Teacher to only students enrolled in classes they teach
-            var staffClassIds = _context.ClassEnrollments
-                .Where(ce => ce.ApplicationUserId == currentUserId &&
-                             (ce.RoleInClass == RoleConstants.Staff || ce.RoleInClass == RoleConstants.Teacher))
-                .Select(ce => ce.ClassChannelId);
-
-            var allowedStudentAccountIds = _context.ClassEnrollments
-                .Where(ce => ce.RoleInClass == RoleConstants.Student && staffClassIds.Contains(ce.ClassChannelId))
-                .Select(ce => ce.ApplicationUserId);
-
+            var allowedStudentAccountIds = GetAllowedStudentAccountIdsQuery(currentUserId);
             query = query.Where(u => u.ApplicationUserId != null && allowedStudentAccountIds.Contains(u.ApplicationUserId));
         }
 
@@ -121,21 +113,11 @@ public class UserService
             return UserServiceResult<UserResponse>.Ok(MapToResponse(user));
 
         // For Staff/Teacher: check if student is enrolled in caller's classes
-        if (string.IsNullOrEmpty(user.ApplicationUserId))
+        if (string.IsNullOrEmpty(user.ApplicationUserId) ||
+            !await IsStudentEnrolledInStaffClassesAsync(currentUserId, user.ApplicationUserId))
+        {
             return UserServiceResult<UserResponse>.Fail(403, "Access denied. You can only view submissions of students enrolled in your classes.");
-
-        var staffClassIds = _context.ClassEnrollments
-            .Where(ce => ce.ApplicationUserId == currentUserId &&
-                         (ce.RoleInClass == RoleConstants.Staff || ce.RoleInClass == RoleConstants.Teacher))
-            .Select(ce => ce.ClassChannelId);
-
-        var isAllowed = await _context.ClassEnrollments
-            .AnyAsync(ce => ce.ApplicationUserId == user.ApplicationUserId &&
-                            ce.RoleInClass == RoleConstants.Student &&
-                            staffClassIds.Contains(ce.ClassChannelId));
-
-        if (!isAllowed)
-            return UserServiceResult<UserResponse>.Fail(403, "Access denied. You can only view submissions of students enrolled in your classes.");
+        }
 
         return UserServiceResult<UserResponse>.Ok(MapToResponse(user));
     }
@@ -192,7 +174,9 @@ public class UserService
         {
             await _context.SaveChangesAsync();
         }
-        catch (DbUpdateException)
+        catch (DbUpdateException ex) when (
+            ex.InnerException is Microsoft.Data.SqlClient.SqlException sqlEx &&
+            (sqlEx.Number == 2601 || sqlEx.Number == 2627))
         {
             return UserServiceResult<UserResponse>.Fail(409, "A submission already exists for this account.");
         }
@@ -216,21 +200,11 @@ public class UserService
 
         if (currentUserRole != RoleConstants.Admin)
         {
-            if (string.IsNullOrEmpty(user.ApplicationUserId))
+            if (string.IsNullOrEmpty(user.ApplicationUserId) ||
+                !await IsStudentEnrolledInStaffClassesAsync(currentUserId, user.ApplicationUserId))
+            {
                 return UserServiceResult<UserResponse>.Fail(403, "Access denied. You can only edit submissions of students enrolled in your classes.");
-
-            var staffClassIds = _context.ClassEnrollments
-                .Where(ce => ce.ApplicationUserId == currentUserId &&
-                             (ce.RoleInClass == RoleConstants.Staff || ce.RoleInClass == RoleConstants.Teacher))
-                .Select(ce => ce.ClassChannelId);
-
-            var isAllowed = await _context.ClassEnrollments
-                .AnyAsync(ce => ce.ApplicationUserId == user.ApplicationUserId &&
-                                ce.RoleInClass == RoleConstants.Student &&
-                                staffClassIds.Contains(ce.ClassChannelId));
-
-            if (!isAllowed)
-                return UserServiceResult<UserResponse>.Fail(403, "Access denied. You can only edit submissions of students enrolled in your classes.");
+            }
         }
 
         user.Phone = request.Phone.Trim();
@@ -303,5 +277,26 @@ public class UserService
         _context.Users.Remove(user);
         await _context.SaveChangesAsync();
         return true;
+    }
+
+    private IQueryable<string> GetAllowedStudentAccountIdsQuery(string? staffUserId)
+    {
+        var staffClassIds = _context.ClassEnrollments
+            .Where(ce => ce.ApplicationUserId == staffUserId &&
+                         (ce.RoleInClass == RoleConstants.Staff || ce.RoleInClass == RoleConstants.Teacher))
+            .Select(ce => ce.ClassChannelId);
+
+        return _context.ClassEnrollments
+            .Where(ce => ce.RoleInClass == RoleConstants.Student && staffClassIds.Contains(ce.ClassChannelId))
+            .Select(ce => ce.ApplicationUserId);
+    }
+
+    private async Task<bool> IsStudentEnrolledInStaffClassesAsync(string? staffUserId, string? studentAccountId)
+    {
+        if (string.IsNullOrEmpty(staffUserId) || string.IsNullOrEmpty(studentAccountId))
+            return false;
+
+        return await GetAllowedStudentAccountIdsQuery(staffUserId)
+            .AnyAsync(accountId => accountId == studentAccountId);
     }
 }

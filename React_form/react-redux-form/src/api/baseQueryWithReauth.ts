@@ -60,10 +60,10 @@ export const baseQueryWithReauth: BaseQueryFn<
               return true;
             }
           }
-          api.dispatch(logOut());
+          api.dispatch(logOut("Your session has expired or your access has changed. Please sign in again."));
           return false;
         } catch {
-          api.dispatch(logOut());
+          api.dispatch(logOut("Your session has expired or your access has changed. Please sign in again."));
           return false;
         } finally {
           isRefreshing = false;

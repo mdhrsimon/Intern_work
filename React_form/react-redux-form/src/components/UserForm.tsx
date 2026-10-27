@@ -181,7 +181,38 @@ const UserForm = ({
         }
       }   
     } catch (err: any) {
-      const msg = err?.data?.message || err?.message || "Error saving user information.";
+      const apiErrors = err?.data?.errors;
+      const errorMessages: string[] = [];
+
+      if (apiErrors && typeof apiErrors === "object") {
+        for (const [rawKey, msgs] of Object.entries(apiErrors)) {
+          const messages = Array.isArray(msgs) ? msgs : [String(msgs)];
+          const firstMessage = messages[0];
+          if (firstMessage) errorMessages.push(firstMessage);
+
+          // Normalize field path for react-hook-form:
+          // e.g., "Education[0].Degree" -> "education.0.degree"
+          // "Phone" -> "phone"
+          const eduMatch = rawKey.match(/^Education\[(\d+)\]\.(.+)$/i);
+          if (eduMatch) {
+            const index = eduMatch[1];
+            const prop = eduMatch[2].charAt(0).toLowerCase() + eduMatch[2].slice(1);
+            methods.setError(`education.${index}.${prop}` as any, {
+              type: "server",
+              message: firstMessage,
+            });
+          } else {
+            const fieldPath = rawKey.charAt(0).toLowerCase() + rawKey.slice(1);
+            methods.setError(fieldPath as any, {
+              type: "server",
+              message: firstMessage,
+            });
+          }
+        }
+      }
+
+      const fallbackMsg = err?.data?.message || err?.data?.title || err?.message || "Error saving user information.";
+      const msg = errorMessages.length > 0 ? errorMessages.join(" ") : fallbackMsg;
       setSubmitError(msg);
       console.error("Error saving user:", err);
     }
