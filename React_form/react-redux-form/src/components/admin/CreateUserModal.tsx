@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useForm } from "react-hook-form";
 import { useCreateAccountMutation } from "../../api/accountApi";
 import type { AccountRole } from "../../types/account";
 import { ROLES } from "../../constants/roles";
@@ -33,16 +34,28 @@ interface CreatedCredentials {
   role: string;
 }
 
+interface CreateUserFormValues {
+  fullName: string;
+  email: string;
+  password: string;
+  role: AccountRole;
+}
+
 export const CreateUserModal: React.FC<CreateUserModalProps> = ({
   isOpen,
   onClose,
 }) => {
   const [createAccount, { isLoading }] = useCreateAccountMutation();
-  const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [role, setRole] = useState<AccountRole>(ROLES.STUDENT);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const { register, handleSubmit, reset } = useForm<CreateUserFormValues>({
+    defaultValues: {
+      fullName: "",
+      email: "",
+      password: "",
+      role: ROLES.STUDENT,
+    },
+  });
 
   // Credentials dialog state — shown after successful creation
   const [credentials, setCredentials] = useState<CreatedCredentials | null>(null);
@@ -68,44 +81,44 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({
     setShowPassword(false);
     setCopiedEmail(false);
     setCopiedPassword(false);
+    reset();
     onClose();
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async (formData: CreateUserFormValues) => {
     setErrorMsg(null);
 
-    if (!email.trim() || !password.trim()) {
+    const trimmedEmail = formData.email.trim();
+    const trimmedPassword = formData.password.trim();
+
+    if (!trimmedEmail || !trimmedPassword) {
       setErrorMsg("Email and password are required.");
       return;
     }
 
-    if (password.length < 8 || !/\d/.test(password)) {
+    if (formData.password.length < 8 || !/\d/.test(formData.password)) {
       setErrorMsg("Password must be at least 8 characters and contain at least one digit.");
       return;
     }
 
     try {
       await createAccount({
-        fullName: fullName.trim(),
-        email: email.trim(),
-        password,
-        role,
+        fullName: formData.fullName.trim(),
+        email: trimmedEmail,
+        password: formData.password,
+        role: formData.role,
       }).unwrap();
 
       // Show credentials dialog — password held only in local state, never stored on server
       setCredentials({
-        fullName: fullName.trim() || email.trim(),
-        email: email.trim(),
-        password,
-        role,
+        fullName: formData.fullName.trim() || trimmedEmail,
+        email: trimmedEmail,
+        password: formData.password,
+        role: formData.role,
       });
 
       // Reset form fields
-      setFullName("");
-      setEmail("");
-      setPassword("");
-      setRole(ROLES.STUDENT);
+      reset();
     } catch (err: unknown) {
       setErrorMsg(getApiErrorMessage(err, "Failed to create user."));
     }
@@ -242,7 +255,7 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="mt-4 space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="fullName" className="text-xs font-semibold text-slate-700">
               Full Name
@@ -253,8 +266,7 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({
                 id="fullName"
                 type="text"
                 placeholder="e.g. John Smith"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
+                {...register("fullName")}
                 className="pl-9 text-sm"
                 required
               />
@@ -271,8 +283,7 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({
                 id="email"
                 type="email"
                 placeholder="user@school.edu"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                {...register("email")}
                 className="pl-9 text-sm"
                 required
               />
@@ -289,8 +300,7 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({
                 id="password"
                 type="password"
                 placeholder="Min 8 characters, at least 1 digit"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                {...register("password")}
                 className="pl-9 text-sm"
                 required
               />
@@ -305,8 +315,7 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({
               <Shield className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
               <select
                 id="role"
-                value={role}
-                onChange={(e) => setRole(e.target.value as AccountRole)}
+                {...register("role")}
                 className="w-full rounded-md border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500"
               >
                 <option value={ROLES.STUDENT}>Student</option>

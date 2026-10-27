@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
+import { useForm } from "react-hook-form";
 import { useAppDispatch, useAppSelector } from "../redux/hooks";
 import { useLoginMutation } from "../api/authApi";
 import { setCredentials, clearSessionNotice } from "../redux/authSlice";
@@ -26,16 +27,26 @@ import {
   Loader2,
 } from "lucide-react";
 
+interface LoginFormValues {
+  email: string;
+  password: string;
+}
+
 const LoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useAppDispatch();
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [validationError, setValidationError] = useState("");
   const sessionNotice = useAppSelector((state) => state.auth.sessionNotice);
+
+  const { register, handleSubmit } = useForm<LoginFormValues>({
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+  });
 
   const [login, { isLoading }] = useLoginMutation();
 
@@ -47,17 +58,16 @@ const LoginPage = () => {
     }
   }, [navigate]);
 
-  const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async (formData: LoginFormValues) => {
     setValidationError("");
     dispatch(clearSessionNotice());
 
-    const trimmedEmail = email.trim();
+    const trimmedEmail = formData.email.trim();
     if (!trimmedEmail) {
       setValidationError("Email is required.");
       return;
     }
-    if (!password) {
+    if (!formData.password) {
       setValidationError("Password is required.");
       return;
     }
@@ -65,7 +75,7 @@ const LoginPage = () => {
     try {
       const authData = await login({
         email: trimmedEmail,
-        password,
+        password: formData.password,
       }).unwrap();
 
       const role = parseRole(authData.role);
@@ -167,7 +177,7 @@ const LoginPage = () => {
               )}
 
               {/* Login Form */}
-              <form onSubmit={onSubmit} className="space-y-5" noValidate>
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
                 <div className="space-y-2">
                   <Label
                     htmlFor="email"
@@ -183,8 +193,7 @@ const LoginPage = () => {
                       id="email"
                       type="email"
                       placeholder="name@example.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      {...register("email")}
                       autoComplete="email"
                       required
                       className="h-12 pl-11 text-base bg-white border-slate-200 focus:border-indigo-500 focus:ring-indigo-500"
@@ -209,8 +218,7 @@ const LoginPage = () => {
                       id="password"
                       type={showPassword ? "text" : "password"}
                       placeholder="Enter your password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      {...register("password")}
                       autoComplete="current-password"
                       required
                       className="h-12 pl-11 pr-11 text-base bg-white border-slate-200 focus:border-indigo-500 focus:ring-indigo-500"

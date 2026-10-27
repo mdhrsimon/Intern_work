@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useForm, useWatch } from "react-hook-form";
 import { useGetClassesQuery, useCheckPolicyMutation } from "../../api/classApi";
 import { useGetAccountsQuery } from "../../api/accountApi";
 import type { PolicyCheckResult } from "../../types/class";
@@ -16,6 +17,12 @@ import {
   HelpCircle,
 } from "lucide-react";
 
+interface PolicySimulatorFormValues {
+  userId: string;
+  classId: string;
+  action: "ManageClass" | "ViewClass";
+}
+
 export const PolicySimulatorView = () => {
   const { data: accountsData } = useGetAccountsQuery({ pageSize: 50 });
   const { data: classesData } = useGetClassesQuery({ pageSize: 50 });
@@ -24,22 +31,32 @@ export const PolicySimulatorView = () => {
   const users = accountsData?.items || [];
   const classes = classesData?.items || [];
 
-  const [selectedUserId, setSelectedUserId] = useState<string>("");
-  const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
-  const [selectedAction, setSelectedAction] = useState<"ManageClass" | "ViewClass">("ManageClass");
+  const { register, handleSubmit, control, setValue } = useForm<PolicySimulatorFormValues>({
+    defaultValues: {
+      userId: "",
+      classId: "",
+      action: "ManageClass",
+    },
+  });
+
+  const selectedUserId = useWatch({ control, name: "userId" });
+  const classIdVal = useWatch({ control, name: "classId" });
+  const selectedClassId = classIdVal ? Number(classIdVal) : null;
+  const selectedAction = useWatch({ control, name: "action" }) || "ManageClass";
+
   const [policyResult, setPolicyResult] = useState<PolicyCheckResult | null>(null);
 
   const selectedUser = users.find((u) => u.id === selectedUserId);
   const selectedClass = classes.find((c) => c.id === selectedClassId);
 
-  const handleSimulate = async () => {
-    if (!selectedUserId || !selectedClassId) return;
+  const handleSimulate = async (data: PolicySimulatorFormValues) => {
+    if (!data.userId || !data.classId) return;
 
     try {
       const res = await checkPolicy({
-        userId: selectedUserId,
-        classId: selectedClassId,
-        action: selectedAction,
+        userId: data.userId,
+        classId: Number(data.classId),
+        action: data.action,
       }).unwrap();
 
       setPolicyResult(res);
@@ -70,7 +87,7 @@ export const PolicySimulatorView = () => {
 
       <div className="grid gap-6 lg:grid-cols-12">
         {/* Left: Input Selection Form */}
-        <div className="lg:col-span-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm space-y-5">
+        <form onSubmit={handleSubmit(handleSimulate)} className="lg:col-span-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm space-y-5">
           <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
             <Terminal className="h-5 w-5 text-purple-600" />
             <h3 className="text-base font-bold text-slate-900">
@@ -85,11 +102,9 @@ export const PolicySimulatorView = () => {
               1. Select Subject (User Account)
             </label>
             <select
-              value={selectedUserId}
-              onChange={(e) => {
-                setSelectedUserId(e.target.value);
-                setPolicyResult(null);
-              }}
+              {...register("userId", {
+                onChange: () => setPolicyResult(null),
+              })}
               className="w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs text-slate-800 shadow-xs focus:border-purple-500 focus:outline-none"
             >
               <option value="">-- Choose User --</option>
@@ -116,11 +131,9 @@ export const PolicySimulatorView = () => {
               2. Select Resource (Class Channel)
             </label>
             <select
-              value={selectedClassId ?? ""}
-              onChange={(e) => {
-                setSelectedClassId(e.target.value ? Number(e.target.value) : null);
-                setPolicyResult(null);
-              }}
+              {...register("classId", {
+                onChange: () => setPolicyResult(null),
+              })}
               className="w-full rounded-lg border border-slate-300 bg-white p-2.5 text-xs text-slate-800 shadow-xs focus:border-purple-500 focus:outline-none"
             >
               <option value="">-- Choose Class Channel --</option>
@@ -141,7 +154,7 @@ export const PolicySimulatorView = () => {
               <button
                 type="button"
                 onClick={() => {
-                  setSelectedAction("ManageClass");
+                  setValue("action", "ManageClass");
                   setPolicyResult(null);
                 }}
                 className={`flex flex-col items-center justify-center rounded-lg border p-3 text-xs font-semibold transition-all ${
@@ -159,7 +172,7 @@ export const PolicySimulatorView = () => {
               <button
                 type="button"
                 onClick={() => {
-                  setSelectedAction("ViewClass");
+                  setValue("action", "ViewClass");
                   setPolicyResult(null);
                 }}
                 className={`flex flex-col items-center justify-center rounded-lg border p-3 text-xs font-semibold transition-all ${
@@ -177,14 +190,14 @@ export const PolicySimulatorView = () => {
           </div>
 
           <Button
-            onClick={handleSimulate}
+            type="submit"
             disabled={isLoading || !selectedUserId || !selectedClassId}
             className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold shadow-sm"
           >
             <Play className="h-4 w-4 mr-2" />
             {isLoading ? "Evaluating Policy..." : "Run Policy Evaluation"}
           </Button>
-        </div>
+        </form>
 
         {/* Right: Policy Evaluation Output & Rule Matrix */}
         <div className="lg:col-span-6 space-y-4">

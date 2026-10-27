@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useForm } from "react-hook-form";
 import {
   useGetAssignmentsByClassQuery,
   useSubmitAssignmentMutation,
@@ -33,6 +34,7 @@ export const StudentAssignmentsView = ({ classId }: StudentAssignmentsViewProps)
   const [submitMutation] = useSubmitAssignmentMutation();
   const [deleteFileMutation] = useDeleteSubmissionFileMutation();
 
+  const { handleSubmit } = useForm();
   const [activeAssignment, setActiveAssignment] = useState<Assignment | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -42,8 +44,7 @@ export const StudentAssignmentsView = ({ classId }: StudentAssignmentsViewProps)
     setErrorMsg("");
   };
 
-  const handleSubmitWork = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmitWork = async () => {
     if (!activeAssignment) return;
 
     setIsSubmitting(true);
@@ -237,7 +238,7 @@ export const StudentAssignmentsView = ({ classId }: StudentAssignmentsViewProps)
               />
             </div>
 
-            <form onSubmit={handleSubmitWork} className="pt-4 border-t">
+            <form onSubmit={handleSubmit(handleSubmitWork)} className="pt-4 border-t">
               <div className="flex items-center justify-end gap-2">
                 <Button type="button" variant="outline" size="sm" onClick={() => setActiveAssignment(null)} className="text-xs">
                   Cancel

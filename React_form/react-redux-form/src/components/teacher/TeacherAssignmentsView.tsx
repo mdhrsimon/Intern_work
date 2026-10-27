@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useForm } from "react-hook-form";
 import {
   useGetAssignmentsByClassQuery,
   useCreateAssignmentMutation,
@@ -35,6 +36,17 @@ interface TeacherAssignmentsViewProps {
   classId: number;
 }
 
+interface AssignmentFormValues {
+  title: string;
+  description: string;
+  dueDate: string;
+}
+
+interface ReturnSubmissionFormValues {
+  grade: string;
+  feedback: string;
+}
+
 export const TeacherAssignmentsView = ({ classId }: TeacherAssignmentsViewProps) => {
   const { data: assignments, isLoading, refetch } = useGetAssignmentsByClassQuery(classId);
 
@@ -46,10 +58,19 @@ export const TeacherAssignmentsView = ({ classId }: TeacherAssignmentsViewProps)
   // Create/Edit modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [dueDate, setDueDate] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+
+  const {
+    register: registerAssignment,
+    handleSubmit: handleSubmitAssignment,
+    reset: resetAssignmentForm,
+  } = useForm<AssignmentFormValues>({
+    defaultValues: {
+      title: "",
+      description: "",
+      dueDate: "",
+    },
+  });
 
   const [confirmConfig, setConfirmConfig] = useState<{
     isOpen: boolean;
@@ -72,25 +93,29 @@ export const TeacherAssignmentsView = ({ classId }: TeacherAssignmentsViewProps)
 
   const openCreateModal = () => {
     setEditingAssignment(null);
-    setTitle("");
-    setDescription("");
-    setDueDate("");
+    resetAssignmentForm({
+      title: "",
+      description: "",
+      dueDate: "",
+    });
     setErrorMsg("");
     setIsModalOpen(true);
   };
 
   const openEditModal = (assignment: Assignment) => {
     setEditingAssignment(assignment);
-    setTitle(assignment.title);
-    setDescription(assignment.description || "");
-    setDueDate(assignment.dueDate ? assignment.dueDate.split("T")[0] : "");
+    resetAssignmentForm({
+      title: assignment.title,
+      description: assignment.description || "",
+      dueDate: assignment.dueDate ? assignment.dueDate.split("T")[0] : "",
+    });
     setErrorMsg("");
     setIsModalOpen(true);
   };
 
-  const handleSaveAssignment = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title.trim()) {
+  const onSaveAssignment = async (data: AssignmentFormValues) => {
+    const trimmedTitle = data.title.trim();
+    if (!trimmedTitle) {
       setErrorMsg("Title is required.");
       return;
     }
@@ -99,16 +124,16 @@ export const TeacherAssignmentsView = ({ classId }: TeacherAssignmentsViewProps)
       if (editingAssignment) {
         await updateMutation({
           id: editingAssignment.id,
-          title: title.trim(),
-          description: description.trim() || undefined,
-          dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
+          title: trimmedTitle,
+          description: data.description.trim() || undefined,
+          dueDate: data.dueDate ? new Date(data.dueDate).toISOString() : undefined,
         }).unwrap();
       } else {
         await createMutation({
           classChannelId: classId,
-          title: title.trim(),
-          description: description.trim() || undefined,
-          dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
+          title: trimmedTitle,
+          description: data.description.trim() || undefined,
+          dueDate: data.dueDate ? new Date(data.dueDate).toISOString() : undefined,
         }).unwrap();
       }
       setIsModalOpen(false);
@@ -277,14 +302,13 @@ export const TeacherAssignmentsView = ({ classId }: TeacherAssignmentsViewProps)
               <div className="rounded-lg bg-red-50 p-3 text-xs text-red-700 font-medium">{errorMsg}</div>
             )}
 
-            <form onSubmit={handleSaveAssignment} className="space-y-4">
+            <form onSubmit={handleSubmitAssignment(onSaveAssignment)} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Title *</label>
                 <input
                   type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
                   placeholder="e.g. Assignment 1: Introduction to React"
+                  {...registerAssignment("title")}
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-blue-600 focus:outline-none"
                   required
                 />
@@ -293,10 +317,9 @@ export const TeacherAssignmentsView = ({ classId }: TeacherAssignmentsViewProps)
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Description / Instructions</label>
                 <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
                   placeholder="Provide instructions or text prompt..."
                   rows={4}
+                  {...registerAssignment("description")}
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-blue-600 focus:outline-none"
                 />
               </div>
@@ -305,8 +328,7 @@ export const TeacherAssignmentsView = ({ classId }: TeacherAssignmentsViewProps)
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Due Date</label>
                 <input
                   type="date"
-                  value={dueDate}
-                  onChange={(e) => setDueDate(e.target.value)}
+                  {...registerAssignment("dueDate")}
                   className="w-full rounded-lg border border-slate-300 px-3 py-2 text-xs focus:border-blue-600 focus:outline-none"
                 />
               </div>
@@ -359,18 +381,28 @@ const SubmissionsReviewList = ({ assignmentId }: { assignmentId: number }) => {
   const { showNotificationToast } = useNotificationToast();
 
   const [selectedSub, setSelectedSub] = useState<AssignmentSubmission | null>(null);
-  const [grade, setGrade] = useState("");
-  const [feedback, setFeedback] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  const {
+    register: registerReturn,
+    handleSubmit: handleSubmitReturn,
+    reset: resetReturnForm,
+  } = useForm<ReturnSubmissionFormValues>({
+    defaultValues: {
+      grade: "",
+      feedback: "",
+    },
+  });
 
   const openReturnModal = (sub: AssignmentSubmission) => {
     setSelectedSub(sub);
-    setGrade(sub.grade || "");
-    setFeedback(sub.feedback || "");
+    resetReturnForm({
+      grade: sub.grade || "",
+      feedback: sub.feedback || "",
+    });
   };
 
-  const handleReturn = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleReturn = async (data: ReturnSubmissionFormValues) => {
     if (!selectedSub) return;
 
     setSubmitting(true);
@@ -378,8 +410,8 @@ const SubmissionsReviewList = ({ assignmentId }: { assignmentId: number }) => {
       await returnMutation({
         assignmentId,
         submissionId: selectedSub.id,
-        grade: grade.trim() || undefined,
-        feedback: feedback.trim() || undefined,
+        grade: data.grade.trim() || undefined,
+        feedback: data.feedback.trim() || undefined,
       }).unwrap();
       setSelectedSub(null);
       refetch();
@@ -501,14 +533,13 @@ const SubmissionsReviewList = ({ assignmentId }: { assignmentId: number }) => {
               </Button>
             </div>
 
-            <form onSubmit={handleReturn} className="space-y-3">
+            <form onSubmit={handleSubmitReturn(handleReturn)} className="space-y-3">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Grade</label>
                 <input
                   type="text"
-                  value={grade}
-                  onChange={(e) => setGrade(e.target.value)}
                   placeholder="e.g. A, 95/100, Excellent"
+                  {...registerReturn("grade")}
                   className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-xs focus:border-emerald-600 focus:outline-none"
                 />
               </div>
@@ -516,10 +547,9 @@ const SubmissionsReviewList = ({ assignmentId }: { assignmentId: number }) => {
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Feedback</label>
                 <textarea
-                  value={feedback}
-                  onChange={(e) => setFeedback(e.target.value)}
                   placeholder="Enter constructive feedback for the student..."
                   rows={3}
+                  {...registerReturn("feedback")}
                   className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-xs focus:border-emerald-600 focus:outline-none"
                 />
               </div>

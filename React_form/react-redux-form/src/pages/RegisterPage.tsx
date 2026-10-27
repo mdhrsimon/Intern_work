@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useForm } from "react-hook-form";
 import { useAppDispatch } from "../redux/hooks";
 import { useRegisterMutation } from "../api/authApi";
 import { setCredentials } from "../redux/authSlice";
@@ -29,42 +30,53 @@ import {
   UserPlus,
 } from "lucide-react";
 
+interface RegisterFormValues {
+  fullName: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+}
+
 const RegisterPage = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
 
-  const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [validationError, setValidationError] = useState("");
 
-  const [register, { isLoading }] = useRegisterMutation();
+  const { register: formRegister, handleSubmit } = useForm<RegisterFormValues>({
+    defaultValues: {
+      fullName: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+    },
+  });
 
-  const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const [registerUser, { isLoading }] = useRegisterMutation();
+
+  const onSubmit = async (formData: RegisterFormValues) => {
     setValidationError("");
 
-    const trimmedEmail = email.trim();
+    const trimmedEmail = formData.email.trim();
     if (!trimmedEmail) {
       setValidationError("Email is required.");
       return;
     }
-    if (!password || password.length < 8 || !/\d/.test(password)) {
+    if (!formData.password || formData.password.length < 8 || !/\d/.test(formData.password)) {
       setValidationError("Password must be at least 8 characters and include at least one digit.");
       return;
     }
-    if (password !== confirmPassword) {
+    if (formData.password !== formData.confirmPassword) {
       setValidationError("Passwords do not match.");
       return;
     }
 
     try {
-      const authData = await register({
+      const authData = await registerUser({
         email: trimmedEmail,
-        password,
-        fullName: fullName.trim() || undefined,
+        password: formData.password,
+        fullName: formData.fullName.trim() || undefined,
       }).unwrap();
 
       const parsedUserRole = parseRole(authData.role) ?? ROLES.STUDENT;
@@ -134,7 +146,7 @@ const RegisterPage = () => {
                 </div>
               )}
 
-              <form onSubmit={onSubmit} className="space-y-4" noValidate>
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
                 {/* Full Name */}
                 <div className="space-y-1.5">
                   <Label htmlFor="fullName" className="text-sm font-semibold text-slate-700">
@@ -147,8 +159,7 @@ const RegisterPage = () => {
                     <Input
                       id="fullName"
                       placeholder="Jane Doe"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
+                      {...formRegister("fullName")}
                       className="h-11 pl-11 bg-white border-slate-200"
                     />
                   </div>
@@ -167,8 +178,7 @@ const RegisterPage = () => {
                       id="email"
                       type="email"
                       placeholder="name@example.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      {...formRegister("email")}
                       autoComplete="email"
                       required
                       className="h-11 pl-11 bg-white border-slate-200"
@@ -190,8 +200,7 @@ const RegisterPage = () => {
                         id="password"
                         type={showPassword ? "text" : "password"}
                         placeholder="Min 8 characters, at least 1 digit"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
+                        {...formRegister("password")}
                         autoComplete="new-password"
                         required
                         className="h-11 pl-11 pr-10 bg-white border-slate-200"
@@ -219,8 +228,7 @@ const RegisterPage = () => {
                         id="confirmPassword"
                         type={showPassword ? "text" : "password"}
                         placeholder="Re-enter password"
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        {...formRegister("confirmPassword")}
                         autoComplete="new-password"
                         required
                         className="h-11 pl-11 bg-white border-slate-200"

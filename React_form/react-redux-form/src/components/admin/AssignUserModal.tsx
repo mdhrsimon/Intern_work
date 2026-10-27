@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useForm, useWatch } from "react-hook-form";
 import { useAssignMemberMutation } from "../../api/classApi";
 import { useGetAccountsQuery } from "../../api/accountApi";
 import type { ClassChannel } from "../../types/class";
@@ -21,16 +22,30 @@ interface AssignUserModalProps {
   onClose: () => void;
 }
 
+interface AssignFormValues {
+  selectedUserId: string;
+  roleInClass: "Staff" | "Student";
+  userSearch: string;
+}
+
 export const AssignUserModal: React.FC<AssignUserModalProps> = ({
   classChannel,
   isOpen,
   onClose,
 }) => {
   const [assignMember, { isLoading }] = useAssignMemberMutation();
-  const [selectedUserId, setSelectedUserId] = useState("");
-  const [roleInClass, setRoleInClass] = useState<"Staff" | "Student">(ROLES.STUDENT);
-  const [userSearch, setUserSearch] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const { register, handleSubmit, setValue, control, reset } = useForm<AssignFormValues>({
+    defaultValues: {
+      selectedUserId: "",
+      roleInClass: ROLES.STUDENT,
+      userSearch: "",
+    },
+  });
+
+  const selectedUserId = useWatch({ control, name: "selectedUserId" });
+  const userSearch = useWatch({ control, name: "userSearch" });
 
   // Fetch active users list for assignment
   const { data: accountsData } = useGetAccountsQuery({
@@ -42,18 +57,23 @@ export const AssignUserModal: React.FC<AssignUserModalProps> = ({
   const assignableUsers = availableUsers.filter((u) => u.role !== ROLES.ADMIN);
   const filteredUsers = assignableUsers.filter(
     (u) =>
-      u.fullName.toLowerCase().includes(userSearch.toLowerCase()) ||
-      u.email.toLowerCase().includes(userSearch.toLowerCase())
+      u.fullName.toLowerCase().includes((userSearch || "").toLowerCase()) ||
+      u.email.toLowerCase().includes((userSearch || "").toLowerCase())
   );
   const selectedUser = availableUsers.find((u) => u.id === selectedUserId);
 
   if (!isOpen || !classChannel) return null;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleModalClose = () => {
+    setErrorMsg(null);
+    reset();
+    onClose();
+  };
+
+  const onSubmit = async (data: AssignFormValues) => {
     setErrorMsg(null);
 
-    if (!selectedUserId) {
+    if (!data.selectedUserId) {
       setErrorMsg("Please select a user to assign.");
       return;
     }
@@ -62,13 +82,12 @@ export const AssignUserModal: React.FC<AssignUserModalProps> = ({
       await assignMember({
         classId: classChannel.id,
         body: {
-          accountId: selectedUserId,
-          roleInClass,
+          accountId: data.selectedUserId,
+          roleInClass: data.roleInClass,
         },
       }).unwrap();
 
-      setSelectedUserId("");
-      setUserSearch("");
+      reset();
       onClose();
     } catch (err: unknown) {
       setErrorMsg(getApiErrorMessage(err, "Failed to assign user to class channel."));
@@ -91,7 +110,7 @@ export const AssignUserModal: React.FC<AssignUserModalProps> = ({
             </div>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleModalClose}
             className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
           >
             <X className="h-5 w-5" />
@@ -105,7 +124,10 @@ export const AssignUserModal: React.FC<AssignUserModalProps> = ({
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="mt-4 space-y-4">
+          <input type="hidden" {...register("selectedUserId")} />
+          <input type="hidden" {...register("roleInClass")} />
+
           {/* Search & Select User */}
           <div className="space-y-1.5">
             <Label className="text-xs font-semibold text-slate-700">
@@ -116,8 +138,7 @@ export const AssignUserModal: React.FC<AssignUserModalProps> = ({
               <input
                 type="text"
                 placeholder="Filter users..."
-                value={userSearch}
-                onChange={(e) => setUserSearch(e.target.value)}
+                {...register("userSearch")}
                 className="w-full rounded-md border border-slate-300 py-1.5 pl-8 pr-3 text-xs focus:border-purple-500 focus:outline-none"
               />
             </div>
@@ -134,9 +155,12 @@ export const AssignUserModal: React.FC<AssignUserModalProps> = ({
                     <div
                       key={user.id}
                       onClick={() => {
-                        setSelectedUserId(user.id);
-                        if (user.role === ROLES.STAFF) setRoleInClass(ROLES.STAFF);
-                        else setRoleInClass(ROLES.STUDENT);
+                        setValue("selectedUserId", user.id, { shouldValidate: true });
+                        setValue(
+                          "roleInClass",
+                          user.role === ROLES.STAFF ? ROLES.STAFF : ROLES.STUDENT,
+                          { shouldValidate: true }
+                        );
                       }}
                       className={`flex cursor-pointer items-center justify-between p-2.5 text-xs transition-colors ${
                         isSelected
@@ -182,7 +206,7 @@ export const AssignUserModal: React.FC<AssignUserModalProps> = ({
             <Button
               type="button"
               variant="outline"
-              onClick={onClose}
+              onClick={handleModalClose}
               disabled={isLoading}
               className="border-slate-200 text-slate-700"
             >

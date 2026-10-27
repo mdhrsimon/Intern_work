@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useForm } from "react-hook-form";
 import { useUpdateClassMutation } from "../../api/classApi";
 import type { ClassChannel } from "../../types/class";
 import { getApiErrorMessage } from "../../utils/getApiErrorMessage";
@@ -19,21 +20,32 @@ interface EditClassModalProps {
   onClose: () => void;
 }
 
+interface EditClassFormValues {
+  name: string;
+  code: string;
+  description: string;
+}
+
 const EditClassForm: React.FC<{ cls: ClassChannel; onClose: () => void }> = ({
   cls,
   onClose,
 }) => {
   const [updateClass, { isLoading }] = useUpdateClassMutation();
-  const [name, setName] = useState(cls.name || "");
-  const [code, setCode] = useState(cls.code || "");
-  const [description, setDescription] = useState(cls.description || "");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const { register, handleSubmit } = useForm<EditClassFormValues>({
+    defaultValues: {
+      name: cls.name || "",
+      code: cls.code || "",
+      description: cls.description || "",
+    },
+  });
+
+  const onSubmit = async (data: EditClassFormValues) => {
     setErrorMsg(null);
 
-    if (!name.trim()) {
+    const trimmedName = data.name.trim();
+    if (!trimmedName) {
       setErrorMsg("Class name is required.");
       return;
     }
@@ -41,9 +53,9 @@ const EditClassForm: React.FC<{ cls: ClassChannel; onClose: () => void }> = ({
     try {
       await updateClass({
         id: cls.id,
-        name: name.trim(),
-        code: code.trim() || undefined,
-        description: description.trim() || undefined,
+        name: trimmedName,
+        code: data.code.trim() || undefined,
+        description: data.description.trim() || undefined,
       }).unwrap();
 
       onClose();
@@ -80,7 +92,7 @@ const EditClassForm: React.FC<{ cls: ClassChannel; onClose: () => void }> = ({
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="mt-4 space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="editClassName" className="text-xs font-semibold text-slate-700">
               Class Name
@@ -88,8 +100,7 @@ const EditClassForm: React.FC<{ cls: ClassChannel; onClose: () => void }> = ({
             <Input
               id="editClassName"
               type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              {...register("name")}
               className="text-sm"
               required
             />
@@ -104,8 +115,7 @@ const EditClassForm: React.FC<{ cls: ClassChannel; onClose: () => void }> = ({
               <Input
                 id="editClassCode"
                 type="text"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
+                {...register("code")}
                 className="pl-9 text-sm"
               />
             </div>
@@ -120,8 +130,7 @@ const EditClassForm: React.FC<{ cls: ClassChannel; onClose: () => void }> = ({
               <Input
                 id="editClassDesc"
                 type="text"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                {...register("description")}
                 className="pl-9 text-sm"
               />
             </div>

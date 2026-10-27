@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useForm } from "react-hook-form";
 import { useCreateClassMutation } from "../../api/classApi";
 import { getApiErrorMessage } from "../../utils/getApiErrorMessage";
 import { Button } from "@/components/ui/button";
@@ -17,37 +18,52 @@ interface CreateClassModalProps {
   onClose: () => void;
 }
 
+interface CreateClassFormValues {
+  name: string;
+  code: string;
+  description: string;
+}
+
 export const CreateClassModal: React.FC<CreateClassModalProps> = ({
   isOpen,
   onClose,
 }) => {
   const [createClass, { isLoading }] = useCreateClassMutation();
-  const [name, setName] = useState("");
-  const [code, setCode] = useState("");
-  const [description, setDescription] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const { register, handleSubmit, reset } = useForm<CreateClassFormValues>({
+    defaultValues: {
+      name: "",
+      code: "",
+      description: "",
+    },
+  });
 
   if (!isOpen) return null;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleModalClose = () => {
+    setErrorMsg(null);
+    reset();
+    onClose();
+  };
+
+  const onSubmit = async (data: CreateClassFormValues) => {
     setErrorMsg(null);
 
-    if (!name.trim()) {
+    const trimmedName = data.name.trim();
+    if (!trimmedName) {
       setErrorMsg("Class name is required.");
       return;
     }
 
     try {
       await createClass({
-        name: name.trim(),
-        code: code.trim() || undefined,
-        description: description.trim() || undefined,
+        name: trimmedName,
+        code: data.code.trim() || undefined,
+        description: data.description.trim() || undefined,
       }).unwrap();
 
-      setName("");
-      setCode("");
-      setDescription("");
+      reset();
       onClose();
     } catch (err: unknown) {
       setErrorMsg(getApiErrorMessage(err, "Failed to create class channel."));
@@ -68,7 +84,7 @@ export const CreateClassModal: React.FC<CreateClassModalProps> = ({
             </div>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleModalClose}
             className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
           >
             <X className="h-5 w-5" />
@@ -82,7 +98,7 @@ export const CreateClassModal: React.FC<CreateClassModalProps> = ({
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="mt-4 space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="className" className="text-xs font-semibold text-slate-700">
               Class Name
@@ -91,8 +107,7 @@ export const CreateClassModal: React.FC<CreateClassModalProps> = ({
               id="className"
               type="text"
               placeholder="e.g. Mathematics A, Database Systems"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              {...register("name")}
               className="text-sm"
               required
             />
@@ -108,8 +123,7 @@ export const CreateClassModal: React.FC<CreateClassModalProps> = ({
                 id="classCode"
                 type="text"
                 placeholder="e.g. MATH-101, CS-201"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
+                {...register("code")}
                 className="pl-9 text-sm"
               />
             </div>
@@ -125,8 +139,7 @@ export const CreateClassModal: React.FC<CreateClassModalProps> = ({
                 id="classDesc"
                 type="text"
                 placeholder="Brief course overview..."
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                {...register("description")}
                 className="pl-9 text-sm"
               />
             </div>
@@ -136,7 +149,7 @@ export const CreateClassModal: React.FC<CreateClassModalProps> = ({
             <Button
               type="button"
               variant="outline"
-              onClick={onClose}
+              onClick={handleModalClose}
               disabled={isLoading}
               className="border-slate-200 text-slate-700"
             >

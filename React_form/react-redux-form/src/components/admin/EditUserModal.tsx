@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useForm } from "react-hook-form";
 import { useUpdateAccountMutation } from "../../api/accountApi";
 import type { AccountUser } from "../../types/account";
 import { getApiErrorMessage } from "../../utils/getApiErrorMessage";
@@ -20,26 +21,37 @@ interface EditUserModalProps {
   onClose: () => void;
 }
 
+interface EditUserFormValues {
+  fullName: string;
+  email: string;
+  password: string;
+}
+
 const EditUserForm: React.FC<{ user: AccountUser; onClose: () => void }> = ({
   user,
   onClose,
 }) => {
   const [updateAccount, { isLoading }] = useUpdateAccountMutation();
-  const [fullName, setFullName] = useState(user.fullName || "");
-  const [email, setEmail] = useState(user.email || "");
-  const [password, setPassword] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const { register, handleSubmit } = useForm<EditUserFormValues>({
+    defaultValues: {
+      fullName: user.fullName || "",
+      email: user.email || "",
+      password: "",
+    },
+  });
+
+  const onSubmit = async (formData: EditUserFormValues) => {
     setErrorMsg(null);
 
-    if (!email.trim()) {
+    const trimmedEmail = formData.email.trim();
+    if (!trimmedEmail) {
       setErrorMsg("Email is required.");
       return;
     }
 
-    if (password.trim() && (password.length < 8 || !/\d/.test(password))) {
+    if (formData.password.trim() && (formData.password.length < 8 || !/\d/.test(formData.password))) {
       setErrorMsg("New password must be at least 8 characters and contain at least one digit.");
       return;
     }
@@ -47,9 +59,9 @@ const EditUserForm: React.FC<{ user: AccountUser; onClose: () => void }> = ({
     try {
       await updateAccount({
         id: user.id,
-        fullName: fullName.trim(),
-        email: email.trim(),
-        password: password.trim() ? password : undefined,
+        fullName: formData.fullName.trim(),
+        email: trimmedEmail,
+        password: formData.password.trim() ? formData.password : undefined,
       }).unwrap();
 
       onClose();
@@ -86,7 +98,7 @@ const EditUserForm: React.FC<{ user: AccountUser; onClose: () => void }> = ({
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="mt-4 space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="editFullName" className="text-xs font-semibold text-slate-700">
               Full Name
@@ -96,8 +108,7 @@ const EditUserForm: React.FC<{ user: AccountUser; onClose: () => void }> = ({
               <Input
                 id="editFullName"
                 type="text"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
+                {...register("fullName")}
                 className="pl-9 text-sm"
                 required
               />
@@ -113,8 +124,7 @@ const EditUserForm: React.FC<{ user: AccountUser; onClose: () => void }> = ({
               <Input
                 id="editEmail"
                 type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                {...register("email")}
                 className="pl-9 text-sm"
                 required
               />
@@ -131,8 +141,7 @@ const EditUserForm: React.FC<{ user: AccountUser; onClose: () => void }> = ({
                 id="editPassword"
                 type="password"
                 placeholder="Leave blank to keep unchanged (min 8 chars, 1 digit)"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                {...register("password")}
                 className="pl-9 text-sm"
               />
             </div>
