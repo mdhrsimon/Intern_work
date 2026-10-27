@@ -10,7 +10,9 @@ export function getApiErrorMessage(
 
   // Handle Axios-like error or RTK FetchBaseQueryError where error data is attached
   const errObj = error as {
+    status?: number;
     response?: {
+      status?: number;
       data?: {
         message?: string;
         errors?: string[] | Record<string, string[]>;
@@ -26,6 +28,7 @@ export function getApiErrorMessage(
     message?: string;
   };
 
+  const status = errObj?.status ?? errObj?.response?.status;
   const data = errObj?.response?.data ?? errObj?.data;
 
   if (data) {
@@ -49,6 +52,10 @@ export function getApiErrorMessage(
         return data.title.trim();
       }
     }
+  }
+
+  if (status === 429) {
+    return "Too many requests. Please try again later.";
   }
 
   // Handle RTK FetchBaseQueryError with `error` string property (e.g. FETCH_ERROR)

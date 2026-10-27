@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import {
   HubConnection,
   HubConnectionBuilder,
@@ -7,19 +7,10 @@ import {
 import { useAppDispatch, useAppSelector } from "../redux/hooks";
 import { useNavigate } from "react-router-dom";
 import { notificationApi } from "../api/notificationApi";
-import { useNotificationToast } from "./NotificationToastContext";
+import { useNotificationToast } from "../hooks/useNotificationToast";
+import { SignalRContext } from "../hooks/useSignalR";
 import type { NotificationItem } from "../types/notification";
 import { ROLES } from "../constants/roles";
-
-interface SignalRContextType {
-  connection: HubConnection | null;
-  isConnected: boolean;
-}
-
-const SignalRContext = createContext<SignalRContextType>({
-  connection: null,
-  isConnected: false,
-});
 
 export const SignalRProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const dispatch = useAppDispatch();
@@ -186,5 +177,3 @@ export const SignalRProvider: React.FC<{ children: React.ReactNode }> = ({ child
     </SignalRContext.Provider>
   );
 };
-
-export const useSignalR = () => useContext(SignalRContext);

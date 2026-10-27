@@ -7,12 +7,12 @@ import {
   CheckCircle,
   AlertCircle
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useRef, useState, createElement } from "react";
 import type { ChangeEvent } from "react";
 import { FILE_CONSTRAINTS } from "../constants/api";
 import { formatFileSize, getFileIcon } from "../utils/file";
 import { getApiErrorMessage } from "../utils/getApiErrorMessage";
-import { useNotificationToast } from "../context/NotificationToastContext";
+import { useNotificationToast } from "../hooks/useNotificationToast";
 
 export type UploadedFileResult = {
   id: number;
@@ -316,14 +316,25 @@ type FileItemProps = {
   disabled?: boolean;
 };
 
-function FileItem({ file, onRemove, disabled }: FileItemProps) {
-  const Icon = getFileIcon(file.file.type || file.file.name);
+type FileItemIconProps = {
+  mimeOrName: string;
+  error?: string;
+};
 
+function FileItemIcon({ mimeOrName, error }: FileItemIconProps) {
+  const Icon = getFileIcon(mimeOrName);
+  return createElement(Icon, {
+    size: 24,
+    className: error ? "text-red-400" : "text-slate-400",
+  });
+}
+
+function FileItem({ file, onRemove, disabled }: FileItemProps) {
   return (
     <div className={`space-y-2 rounded-md border p-3 bg-white ${file.error ? "border-red-200" : "border-slate-200"}`}>
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3 overflow-hidden">
-          <Icon size={24} className={file.error ? "text-red-400" : "text-slate-400"} />
+          <FileItemIcon mimeOrName={file.file.type || file.file.name} error={file.error} />
           <div className="flex flex-col overflow-hidden">
             <span className="text-xs font-medium text-slate-800 truncate" title={file.file.name}>
               {file.file.name}

@@ -15,7 +15,7 @@ import { downloadFile, getAttachmentDownloadUrl, getSubmissionFileDownloadUrl } 
 import { formatDate } from "../../utils/date";
 import { getApiErrorMessage } from "../../utils/getApiErrorMessage";
 import { ConfirmationModal } from "../admin/ConfirmationModal";
-import { useNotificationToast } from "../../context/NotificationToastContext";
+import { useNotificationToast } from "../../hooks/useNotificationToast";
 import { StatusBadge } from "../common/StatusBadge";
 import {
   BookOpen,

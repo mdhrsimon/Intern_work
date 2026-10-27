@@ -21,7 +21,7 @@ import {
 import { useAuthSession } from "../hooks/useAuthSession";
 import { Skeleton } from "./ui/skeleton";
 import { formatRelativeTime } from "../utils/notificationHelpers";
-import { useNotificationToast } from "../context/NotificationToastContext";
+import { useNotificationToast } from "../hooks/useNotificationToast";
 import { ROLES } from "../constants/roles";
 import type { NotificationItem } from "../types/notification";
 

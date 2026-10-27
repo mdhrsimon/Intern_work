@@ -12,6 +12,23 @@ import { userApi } from "./userApi";
 
 const PAGE_SIZE = 10;
 
+type InvalidateUsersContext = {
+  dispatch: (action: ReturnType<typeof userApi.util.invalidateTags>) => unknown;
+  queryFulfilled: Promise<unknown>;
+};
+
+const invalidateUsersOnSuccess = async (
+  _args: unknown,
+  { dispatch, queryFulfilled }: InvalidateUsersContext
+) => {
+  try {
+    await queryFulfilled;
+    dispatch(userApi.util.invalidateTags(["Users"]));
+  } catch {
+    // Mutation failed; do not invalidate
+  }
+};
+
 export const accountApi = createApi({
   reducerPath: "accountApi",
   baseQuery: baseQueryWithReauth,
@@ -73,14 +90,7 @@ export const accountApi = createApi({
         { type: "Accounts", id },
         { type: "Accounts", id: "LIST" },
       ],
-      async onQueryStarted(_args, { dispatch, queryFulfilled }) {
-        try {
-          await queryFulfilled;
-          dispatch(userApi.util.invalidateTags(["Users"]));
-        } catch {
-          // Mutation failed; do not invalidate
-        }
-      },
+      onQueryStarted: invalidateUsersOnSuccess,
     }),
 
     changeRole: builder.mutation<AccountUser, ChangeRoleRequest>({
@@ -93,6 +103,7 @@ export const accountApi = createApi({
         { type: "Accounts", id },
         { type: "Accounts", id: "LIST" },
       ],
+      onQueryStarted: invalidateUsersOnSuccess,
     }),
 
     toggleActive: builder.mutation<AccountUser, { id: string; isActive: boolean }>({
@@ -113,6 +124,7 @@ export const accountApi = createApi({
         method: "DELETE",
       }),
       invalidatesTags: [{ type: "Accounts", id: "LIST" }],
+      onQueryStarted: invalidateUsersOnSuccess,
     }),
   }),
 });

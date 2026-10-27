@@ -46,60 +46,88 @@ public class AccountService
 
         if (!string.IsNullOrWhiteSpace(search))
         {
-            var s = search.Trim().ToLower();
+            var s = search.Trim();
             query = query.Where(u =>
-                (u.Email != null && u.Email.ToLower().Contains(s)) ||
-                (u.FullName != null && u.FullName.ToLower().Contains(s)));
+                (u.Email != null && u.Email.Contains(s)) ||
+                (u.FullName != null && u.FullName.Contains(s)));
         }
 
         if (isActive.HasValue)
+        {
             query = query.Where(u => u.IsActive == isActive.Value);
+        }
 
-        var users = await query.OrderByDescending(u => u.Id).ToListAsync();
+        if (!string.IsNullOrWhiteSpace(role))
+        {
+            var normalizedRole = RoleHelper.NormalizeRole(role);
+            var targetRoles = string.Equals(normalizedRole, RoleConstants.Staff, StringComparison.OrdinalIgnoreCase)
+                ? new List<string> { RoleConstants.Staff, RoleConstants.Teacher }
+                : new List<string> { normalizedRole };
 
-        var resultItems = new List<AccountDto>();
+            query = query.Where(u => _context.UserRoles.Any(ur =>
+                ur.UserId == u.Id &&
+                _context.Roles.Any(r => r.Id == ur.RoleId && targetRoles.Contains(r.Name!))));
+        }
 
-        var userIds = users.Select(u => u.Id).ToList();
-        var enrollments = await _context.ClassEnrollments
-            .Include(e => e.ClassChannel)
-            .Where(e => userIds.Contains(e.ApplicationUserId))
+        var totalCount = await query.CountAsync();
+        var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+
+        var pagedUsers = await query
+            .OrderByDescending(u => u.Id)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync();
 
-        foreach (var user in users)
-        {
-            var roles = await _userManager.GetRolesAsync(user);
-            var userRole = RoleHelper.GetPrimaryRole(roles);
+        var pagedUserIds = pagedUsers.Select(u => u.Id).ToList();
 
-            if (!string.IsNullOrWhiteSpace(role) &&
-                !string.Equals(userRole, role, StringComparison.OrdinalIgnoreCase))
-                continue;
+        // Load roles ONLY for the page's user ids in one grouped query
+        var userRolesList = await (from ur in _context.UserRoles
+                                   join r in _context.Roles on ur.RoleId equals r.Id
+                                   where pagedUserIds.Contains(ur.UserId)
+                                   select new { ur.UserId, RoleName = r.Name })
+                                  .ToListAsync();
 
-            var userEnrollments = enrollments
-                .Where(e => e.ApplicationUserId == user.Id)
-                .Select(e => new AssignedClassSummaryDto
+        var rolesByUserId = userRolesList
+            .GroupBy(x => x.UserId)
+            .ToDictionary(
+                g => g.Key,
+                g => (IList<string>)g.Select(x => x.RoleName).Where(name => !string.IsNullOrEmpty(name)).Select(name => name!).ToList()
+            );
+
+        // Load class enrollments ONLY for the page's user ids in one grouped query
+        var userEnrollmentsList = await _context.ClassEnrollments
+            .Include(e => e.ClassChannel)
+            .Where(e => pagedUserIds.Contains(e.ApplicationUserId))
+            .ToListAsync();
+
+        var enrollmentsByUserId = userEnrollmentsList
+            .GroupBy(e => e.ApplicationUserId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Select(e => new AssignedClassSummaryDto
                 {
                     ClassId = e.ClassChannelId,
                     ClassName = e.ClassChannel.Name,
                     Code = e.ClassChannel.Code,
                     RoleInClass = e.RoleInClass,
                     JoinedAt = e.JoinedAt
-                })
-                .ToList();
+                }).ToList()
+            );
+
+        var resultItems = new List<AccountDto>();
+        foreach (var user in pagedUsers)
+        {
+            var userRoles = rolesByUserId.TryGetValue(user.Id, out var rList) ? rList : new List<string>();
+            var userRole = RoleHelper.GetPrimaryRole(userRoles);
+
+            var userEnrollments = enrollmentsByUserId.TryGetValue(user.Id, out var eList) ? eList : new List<AssignedClassSummaryDto>();
 
             resultItems.Add(MapToDto(user, userRole, userEnrollments));
         }
 
-        var totalCount = resultItems.Count;
-        var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
-
-        var paged = resultItems
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToList();
-
         return new PagedAccountsResult
         {
-            Items = paged,
+            Items = resultItems,
             Page = page,
             PageSize = pageSize,
             TotalCount = totalCount,
@@ -187,9 +215,12 @@ public class AccountService
             return AccountServiceResult.Fail(400, "Cannot deactivate the last active administrator.");
         }
 
+        // Validate role change guards and conflicts before any mutations
+        string? requestedRole = null;
+        bool roleChangeRequested = false;
         if (!string.IsNullOrWhiteSpace(request.Role))
         {
-            var requestedRole = RoleHelper.NormalizeRole(request.Role);
+            requestedRole = RoleHelper.NormalizeRole(request.Role);
             if (currentUserId == id && requestedRole != RoleConstants.Admin)
             {
                 return AccountServiceResult.Fail(400, "You cannot change your own administrative role.");
@@ -199,14 +230,51 @@ public class AccountService
             {
                 return AccountServiceResult.Fail(400, "Cannot demote the last active administrator.");
             }
+
+            var currentRoles = await _userManager.GetRolesAsync(user);
+            var oldRole = RoleHelper.GetPrimaryRole(currentRoles);
+
+            if (requestedRole != oldRole)
+            {
+                roleChangeRequested = true;
+                var conflictError = await CheckRoleChangeConflictsAsync(user, oldRole, requestedRole);
+                if (conflictError != null)
+                {
+                    return AccountServiceResult.Fail(409, conflictError);
+                }
+            }
         }
 
+        // Cheap duplicate email pre-check before any mutations
         var trimmedEmail = request.Email?.Trim();
         var trimmedFullName = request.FullName?.Trim();
 
-        var emailChanged = !string.IsNullOrWhiteSpace(trimmedEmail) && trimmedEmail != user.Email;
+        var emailChanged = !string.IsNullOrWhiteSpace(trimmedEmail) && !string.Equals(trimmedEmail, user.Email, StringComparison.OrdinalIgnoreCase);
         var fullNameChanged = !string.IsNullOrWhiteSpace(trimmedFullName) && trimmedFullName != user.FullName;
 
+        if (emailChanged)
+        {
+            var existingWithEmail = await _userManager.FindByEmailAsync(trimmedEmail!);
+            if (existingWithEmail != null && existingWithEmail.Id != user.Id)
+            {
+                return AccountServiceResult.Fail(409, "Email is already in use.");
+            }
+        }
+
+        // Validate password complexity before mutations if password update requested
+        if (!string.IsNullOrWhiteSpace(request.Password))
+        {
+            foreach (var validator in _userManager.PasswordValidators)
+            {
+                var valResult = await validator.ValidateAsync(_userManager, user, request.Password);
+                if (!valResult.Succeeded)
+                {
+                    return AccountServiceResult.Fail(400, "Password update failed", valResult.Errors.Select(e => e.Description));
+                }
+            }
+        }
+
+        // --- All validations passed; apply mutations ---
         if (emailChanged)
         {
             user.Email = trimmedEmail;
@@ -219,20 +287,6 @@ public class AccountService
         var previousIsActive = user.IsActive;
         if (request.IsActive.HasValue)
             user.IsActive = request.IsActive.Value;
-
-        if (!string.IsNullOrWhiteSpace(request.Password))
-        {
-            var token = await _userManager.GeneratePasswordResetTokenAsync(user);
-            var passResult = await _userManager.ResetPasswordAsync(user, token, request.Password);
-            if (!passResult.Succeeded)
-                return AccountServiceResult.Fail(400, "Password update failed", passResult.Errors.Select(e => e.Description));
-
-            await _userManager.UpdateSecurityStampAsync(user);
-            user.RefreshToken = null;
-            user.RefreshTokenExpiryTime = null;
-            await _userManager.UpdateAsync(user);
-            _userStateCache.Invalidate(user.Id);
-        }
 
         if (emailChanged || fullNameChanged)
         {
@@ -260,6 +314,22 @@ public class AccountService
                 updateResult.Errors.Select(e => e.Description));
         }
 
+        if (!string.IsNullOrWhiteSpace(request.Password))
+        {
+            var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+            var passResult = await _userManager.ResetPasswordAsync(user, token, request.Password);
+            if (!passResult.Succeeded)
+                return AccountServiceResult.Fail(400, "Password update failed", passResult.Errors.Select(e => e.Description));
+
+            await _userManager.UpdateSecurityStampAsync(user);
+            user.RefreshToken = null;
+            user.RefreshTokenExpiryTime = null;
+            await _userManager.SetLockoutEndDateAsync(user, null);
+            await _userManager.ResetAccessFailedCountAsync(user);
+            await _userManager.UpdateAsync(user);
+            _userStateCache.Invalidate(user.Id);
+        }
+
         if (_context.ChangeTracker.HasChanges())
         {
             await _context.SaveChangesAsync();
@@ -274,6 +344,12 @@ public class AccountService
                 user.RefreshTokenExpiryTime = null;
                 await _userManager.UpdateAsync(user);
             }
+            else
+            {
+                await _userManager.SetLockoutEndDateAsync(user, null);
+                await _userManager.ResetAccessFailedCountAsync(user);
+                await _userManager.UpdateAsync(user);
+            }
             _userStateCache.Invalidate(user.Id);
 
             await _notificationService.NotifyAllAdminsAsync(
@@ -285,25 +361,12 @@ public class AccountService
                 currentUserId);
         }
 
-        if (!string.IsNullOrWhiteSpace(request.Role))
+        if (roleChangeRequested && requestedRole != null)
         {
-            var newRole = RoleHelper.NormalizeRole(request.Role);
-            var currentRoles = await _userManager.GetRolesAsync(user);
-            var oldRole = RoleHelper.GetPrimaryRole(currentRoles);
-
-            if (newRole != oldRole)
+            var roleChangeResult = await PerformRoleChangeTransactionAsync(user, requestedRole);
+            if (roleChangeResult != null)
             {
-                var conflictError = await CheckRoleChangeConflictsAsync(user, oldRole, newRole);
-                if (conflictError != null)
-                {
-                    return AccountServiceResult.Fail(409, conflictError);
-                }
-
-                var roleChangeResult = await PerformRoleChangeTransactionAsync(user, newRole);
-                if (roleChangeResult != null)
-                {
-                    return roleChangeResult;
-                }
+                return roleChangeResult;
             }
         }
 
@@ -394,6 +457,11 @@ public class AccountService
             await _userManager.UpdateSecurityStampAsync(user);
             user.RefreshToken = null;
             user.RefreshTokenExpiryTime = null;
+        }
+        else
+        {
+            await _userManager.SetLockoutEndDateAsync(user, null);
+            await _userManager.ResetAccessFailedCountAsync(user);
         }
         await _userManager.UpdateAsync(user);
         _userStateCache.Invalidate(user.Id);
@@ -487,21 +555,24 @@ public class AccountService
     {
         if (oldRole == newRole) return null;
 
-        if (oldRole == RoleConstants.Staff && newRole != RoleConstants.Staff)
+        // Moves to Admin are always allowed (existing cleanup removes enrollments)
+        if (newRole == RoleConstants.Admin) return null;
+
+        if (newRole == RoleConstants.Student)
         {
             var hasAssignments = await _context.Assignments.AnyAsync(a => a.CreatedByUserId == user.Id);
             var hasAttachments = await _context.AssignmentAttachments.AnyAsync(a => a.UploadedByUserId == user.Id);
             if (hasAssignments || hasAttachments)
             {
-                return "Cannot change role: user has existing teaching records (assignments or attachments created as teacher/staff).";
+                return "Cannot change role to Student: user has existing teaching records (assignments created or attachments uploaded).";
             }
         }
-        else if (oldRole == RoleConstants.Student && newRole != RoleConstants.Student)
+        else if (newRole == RoleConstants.Staff)
         {
             var hasSubmissions = await _context.AssignmentSubmissions.AnyAsync(s => s.StudentUserId == user.Id);
             if (hasSubmissions)
             {
-                return "Cannot change role: user has existing academic submissions as a student.";
+                return "Cannot change role to Teacher/Staff: user has existing academic submissions as a student.";
             }
         }
 

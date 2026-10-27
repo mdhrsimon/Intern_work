@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useUpdateAccountMutation } from "../../api/accountApi";
 import type { AccountUser } from "../../types/account";
 import { getApiErrorMessage } from "../../utils/getApiErrorMessage";
@@ -20,27 +20,15 @@ interface EditUserModalProps {
   onClose: () => void;
 }
 
-export const EditUserModal: React.FC<EditUserModalProps> = ({
+const EditUserForm: React.FC<{ user: AccountUser; onClose: () => void }> = ({
   user,
-  isOpen,
   onClose,
 }) => {
   const [updateAccount, { isLoading }] = useUpdateAccountMutation();
-  const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("");
+  const [fullName, setFullName] = useState(user.fullName || "");
+  const [email, setEmail] = useState(user.email || "");
   const [password, setPassword] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (user) {
-      setFullName(user.fullName || "");
-      setEmail(user.email || "");
-      setPassword("");
-      setErrorMsg(null);
-    }
-  }, [user, isOpen]);
-
-  if (!isOpen || !user) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,8 +39,8 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({
       return;
     }
 
-    if (password.trim() && password.length < 6) {
-      setErrorMsg("New password must be at least 6 characters.");
+    if (password.trim() && (password.length < 8 || !/\d/.test(password))) {
+      setErrorMsg("New password must be at least 8 characters and contain at least one digit.");
       return;
     }
 
@@ -142,7 +130,7 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({
               <Input
                 id="editPassword"
                 type="password"
-                placeholder="Leave blank to keep unchanged"
+                placeholder="Leave blank to keep unchanged (min 8 chars, 1 digit)"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="pl-9 text-sm"
@@ -172,4 +160,13 @@ export const EditUserModal: React.FC<EditUserModalProps> = ({
       </div>
     </div>
   );
+};
+
+export const EditUserModal: React.FC<EditUserModalProps> = ({
+  user,
+  isOpen,
+  onClose,
+}) => {
+  if (!isOpen || !user) return null;
+  return <EditUserForm key={user.id} user={user} onClose={onClose} />;
 };

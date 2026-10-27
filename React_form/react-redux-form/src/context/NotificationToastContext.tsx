@@ -1,19 +1,13 @@
-import React, { createContext, useContext, useState, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import { X, Bell, BookOpen, CheckCircle, Clock, UserPlus, UserCheck } from "lucide-react";
 import type { NotificationItem } from "../types/notification";
+import { NotificationToastContext } from "../hooks/useNotificationToast";
 
 interface ToastItem {
   id: string;
   notification: NotificationItem;
   onClick?: () => void;
 }
-
-interface NotificationToastContextType {
-  showNotificationToast: (notification: NotificationItem, onClick?: () => void) => void;
-  dismissToast: (id: string) => void;
-}
-
-const NotificationToastContext = createContext<NotificationToastContextType | undefined>(undefined);
 
 export const NotificationToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
@@ -105,12 +99,4 @@ export const NotificationToastProvider: React.FC<{ children: React.ReactNode }> 
       </div>
     </NotificationToastContext.Provider>
   );
-};
-
-export const useNotificationToast = () => {
-  const context = useContext(NotificationToastContext);
-  if (!context) {
-    throw new Error("useNotificationToast must be used within a NotificationToastProvider");
-  }
-  return context;
 };

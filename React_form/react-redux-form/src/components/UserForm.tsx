@@ -3,6 +3,7 @@ import {
   FormProvider,
   useForm,
   Controller,
+  type FieldPath,
 } from "react-hook-form";
 
 import { useNavigate } from "react-router-dom";
@@ -180,8 +181,19 @@ const UserForm = ({
           navigate("/students");
         }
       }   
-    } catch (err: any) {
-      const apiErrors = err?.data?.errors;
+    } catch (err: unknown) {
+      interface ApiValidationError {
+        data?: {
+          errors?: Record<string, string[] | string>;
+          message?: string;
+          title?: string;
+        };
+        message?: string;
+      }
+      const isApiError = (e: unknown): e is ApiValidationError => typeof e === "object" && e !== null;
+
+      const errorData = isApiError(err) ? err.data : undefined;
+      const apiErrors = errorData?.errors;
       const errorMessages: string[] = [];
 
       if (apiErrors && typeof apiErrors === "object") {
@@ -197,13 +209,13 @@ const UserForm = ({
           if (eduMatch) {
             const index = eduMatch[1];
             const prop = eduMatch[2].charAt(0).toLowerCase() + eduMatch[2].slice(1);
-            methods.setError(`education.${index}.${prop}` as any, {
+            methods.setError(`education.${index}.${prop}` as unknown as FieldPath<CreateUserPayload>, {
               type: "server",
               message: firstMessage,
             });
           } else {
             const fieldPath = rawKey.charAt(0).toLowerCase() + rawKey.slice(1);
-            methods.setError(fieldPath as any, {
+            methods.setError(fieldPath as unknown as FieldPath<CreateUserPayload>, {
               type: "server",
               message: firstMessage,
             });
@@ -211,7 +223,9 @@ const UserForm = ({
         }
       }
 
-      const fallbackMsg = err?.data?.message || err?.data?.title || err?.message || "Error saving user information.";
+      const fallbackMsg =
+        (isApiError(err) && (err.data?.message || err.data?.title || err.message)) ||
+        "Error saving user information.";
       const msg = errorMessages.length > 0 ? errorMessages.join(" ") : fallbackMsg;
       setSubmitError(msg);
       console.error("Error saving user:", err);

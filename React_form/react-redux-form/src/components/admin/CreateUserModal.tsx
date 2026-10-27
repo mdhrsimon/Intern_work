@@ -80,8 +80,8 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({
       return;
     }
 
-    if (password.length < 6) {
-      setErrorMsg("Password must be at least 6 characters.");
+    if (password.length < 8 || !/\d/.test(password)) {
+      setErrorMsg("Password must be at least 8 characters and contain at least one digit.");
       return;
     }
 
@@ -288,7 +288,7 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({
               <Input
                 id="password"
                 type="password"
-                placeholder="Min 6 characters"
+                placeholder="Min 8 characters, at least 1 digit"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="pl-9 text-sm"

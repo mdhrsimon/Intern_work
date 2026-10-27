@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useUpdateClassMutation } from "../../api/classApi";
 import type { ClassChannel } from "../../types/class";
 import { getApiErrorMessage } from "../../utils/getApiErrorMessage";
@@ -19,27 +19,15 @@ interface EditClassModalProps {
   onClose: () => void;
 }
 
-export const EditClassModal: React.FC<EditClassModalProps> = ({
+const EditClassForm: React.FC<{ cls: ClassChannel; onClose: () => void }> = ({
   cls,
-  isOpen,
   onClose,
 }) => {
   const [updateClass, { isLoading }] = useUpdateClassMutation();
-  const [name, setName] = useState("");
-  const [code, setCode] = useState("");
-  const [description, setDescription] = useState("");
+  const [name, setName] = useState(cls.name || "");
+  const [code, setCode] = useState(cls.code || "");
+  const [description, setDescription] = useState(cls.description || "");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (cls) {
-      setName(cls.name || "");
-      setCode(cls.code || "");
-      setDescription(cls.description || "");
-      setErrorMsg(null);
-    }
-  }, [cls, isOpen]);
-
-  if (!isOpen || !cls) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -161,4 +149,13 @@ export const EditClassModal: React.FC<EditClassModalProps> = ({
       </div>
     </div>
   );
+};
+
+export const EditClassModal: React.FC<EditClassModalProps> = ({
+  cls,
+  isOpen,
+  onClose,
+}) => {
+  if (!isOpen || !cls) return null;
+  return <EditClassForm key={cls.id} cls={cls} onClose={onClose} />;
 };

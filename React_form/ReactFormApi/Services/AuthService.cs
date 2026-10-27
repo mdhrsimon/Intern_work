@@ -86,8 +86,41 @@ public class AuthService
         var trimmedEmail = request.Email.Trim();
         var user = await _userManager.FindByEmailAsync(trimmedEmail);
 
-        if (user == null || !await _userManager.CheckPasswordAsync(user, request.Password))
+        if (user == null)
             return AuthServiceResult.Fail(401, "Invalid email or password.");
+
+        // Ensure lockout is enabled for user rows where it was previously disabled
+        if (!user.LockoutEnabled)
+        {
+            await _userManager.SetLockoutEnabledAsync(user, true);
+        }
+
+        // Before the password check, check if account is currently locked out
+        if (await _userManager.IsLockedOutAsync(user))
+        {
+            var lockoutEnd = await _userManager.GetLockoutEndDateAsync(user);
+            var remainingMinutes = lockoutEnd.HasValue
+                ? Math.Max(1, (int)Math.Ceiling((lockoutEnd.Value - DateTimeOffset.UtcNow).TotalMinutes))
+                : 15;
+            return AuthServiceResult.Fail(429, $"Too many failed attempts. Try again in {remainingMinutes} minutes.");
+        }
+
+        if (!await _userManager.CheckPasswordAsync(user, request.Password))
+        {
+            await _userManager.AccessFailedAsync(user);
+            if (await _userManager.IsLockedOutAsync(user))
+            {
+                var lockoutEnd = await _userManager.GetLockoutEndDateAsync(user);
+                var remainingMinutes = lockoutEnd.HasValue
+                    ? Math.Max(1, (int)Math.Ceiling((lockoutEnd.Value - DateTimeOffset.UtcNow).TotalMinutes))
+                    : 15;
+                return AuthServiceResult.Fail(429, $"Too many failed attempts. Try again in {remainingMinutes} minutes.");
+            }
+
+            return AuthServiceResult.Fail(401, "Invalid email or password.");
+        }
+
+        await _userManager.ResetAccessFailedCountAsync(user);
 
         if (!user.IsActive)
             return AuthServiceResult.Fail(403, "Account is disabled. Please contact administrator.");

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useAuthSession } from "../hooks/useAuthSession";
 import { Navbar } from "../components/Navbar";
@@ -30,12 +30,6 @@ const AdminDashboard = () => {
     if (urlTab === "assignments") return "assignments";
     return "users";
   });
-
-  useEffect(() => {
-    if (urlTab === "accounts" || urlTab === "users") setActiveTab("users");
-    else if (urlClassId || urlTab === "classes") setActiveTab("classes");
-    else if (urlTab === "assignments") setActiveTab("assignments");
-  }, [urlTab, urlClassId]);
 
   return (
     <div className="min-h-screen bg-slate-50">

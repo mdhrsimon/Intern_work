@@ -51,8 +51,8 @@ const RegisterPage = () => {
       setValidationError("Email is required.");
       return;
     }
-    if (!password || password.length < 6) {
-      setValidationError("Password must be at least 6 characters.");
+    if (!password || password.length < 8 || !/\d/.test(password)) {
+      setValidationError("Password must be at least 8 characters and include at least one digit.");
       return;
     }
     if (password !== confirmPassword) {
@@ -189,7 +189,7 @@ const RegisterPage = () => {
                       <Input
                         id="password"
                         type={showPassword ? "text" : "password"}
-                        placeholder="Min 6 characters"
+                        placeholder="Min 8 characters, at least 1 digit"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         autoComplete="new-password"

@@ -6,7 +6,7 @@ public static class AuthConstants
     public const string RefreshTokenCookie = "refresh_token";
 
     public const string CookieRootPath = "/";
-    public const string CookieAuthApiPath = "/api/auth";
+    public const string CookieAuthApiPath = "/api/Auth";
 
     public const int DefaultAccessTokenExpiryMinutes = 15;
     public const int DefaultRefreshTokenExpiryDays = 7;
