@@ -30,7 +30,7 @@ export const ClassAssignmentView: React.FC = () => {
   // Set default selected class once loaded
   const currentSelectedId = selectedClassId ?? (classes.length > 0 ? classes[0].id : null);
 
-  const {
+  const { 
     data: classDetails,
     isLoading: isLoadingDetails,
   } = useGetClassByIdQuery(currentSelectedId ?? 0, {

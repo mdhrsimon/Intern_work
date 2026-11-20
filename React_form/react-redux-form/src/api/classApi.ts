@@ -5,9 +5,12 @@ import type {
   CreateClassRequest,
   UpdateClassRequest,
   AssignMemberRequest,
+  BulkAssignMembersRequest, 
+  BulkAssignMembersResponse ,
   PaginatedClasses,
   PolicyCheckRequest,
   PolicyCheckResult,
+
 } from "../types/class";
 import { baseQueryWithReauth } from "./baseQueryWithReauth";
 
@@ -102,6 +105,23 @@ export const classApi = createApi({
       ],
     }),
 
+        assignMembersBulk: builder.mutation<
+      BulkAssignMembersResponse,
+      { classId: number; body: BulkAssignMembersRequest }
+    >({
+      query: ({ classId, body }) => ({
+        url: `classes/${classId}/members/bulk`,
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: (_r, _e, { classId }) => [
+        { type: "ClassMembers", id: classId },
+        { type: "Classes", id: classId },
+        { type: "Classes", id: "LIST" },
+        { type: "MyClasses", id: "LIST" },
+      ],
+    }),
+
     removeMember: builder.mutation<void, { classId: number; accountId: string }>({
       query: ({ classId, accountId }) => ({
         url: `classes/${classId}/members/${accountId}`,
@@ -133,8 +153,10 @@ export const {
   useUpdateClassMutation,
   useDeleteClassMutation,
   useAssignMemberMutation,
+  useAssignMembersBulkMutation,
   useRemoveMemberMutation,
   useCheckPolicyMutation,
+  
 } = classApi;
 
 export { PAGE_SIZE as CLASS_PAGE_SIZE };

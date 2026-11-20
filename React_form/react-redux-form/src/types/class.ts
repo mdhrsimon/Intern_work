@@ -41,6 +41,20 @@ export interface AssignMemberRequest {
   accountId: string;
   roleInClass: "Staff" | "Student";
 }
+export interface BulkAssignMembersRequest {
+  accountIds: string[];
+}
+
+export interface BulkAssignFailure {
+  accountId: string;
+  name?: string;
+  reason: string;
+}
+
+export interface BulkAssignMembersResponse {
+  assigned: number;
+  failed: BulkAssignFailure[];
+}
 
 export interface PaginatedClasses {
   items: ClassChannel[];

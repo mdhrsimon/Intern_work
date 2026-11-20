@@ -131,3 +131,42 @@ public class AssignMemberResult
         Message = message
     };
 }
+public class BulkAssignMembersRequest
+{
+    public List<string> AccountIds { get; set; } = new();
+}
+
+public class BulkAssignFailure
+{
+    public string AccountId { get; set; } = string.Empty;
+    public string? Name { get; set; }
+    public string Reason { get; set; } = string.Empty;
+}
+
+public class BulkAssignResponse
+{
+    public int Assigned { get; set; }
+    public List<BulkAssignFailure> Failed { get; set; } = new();
+}
+
+public class BulkAssignResult
+{
+    public bool Success { get; set; }
+    public int StatusCode { get; set; }
+    public string Message { get; set; } = string.Empty;
+    public BulkAssignResponse? Data { get; set; }
+
+    public static BulkAssignResult Ok(BulkAssignResponse data) => new()
+    {
+        Success = true,
+        StatusCode = 200,
+        Data = data
+    };
+
+    public static BulkAssignResult Fail(int statusCode, string message) => new()
+    {
+        Success = false,
+        StatusCode = statusCode,
+        Message = message
+    };
+}

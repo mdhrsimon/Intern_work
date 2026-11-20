@@ -110,6 +110,17 @@ public class ClassesController : ControllerBase
 
         return Ok(new { message = result.Message });
     }
+    // POST: api/classes/{id}/members/bulk
+    [HttpPost("{id:int}/members/bulk")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> AssignMembersBulk(int id, [FromBody] BulkAssignMembersRequest request)
+    {
+        var result = await _classService.AssignMembersBulkAsync(id, request.AccountIds);
+        if (!result.Success)
+            return StatusCode(result.StatusCode, new { message = result.Message });
+
+        return Ok(result.Data);
+    }
 
     // DELETE: api/classes/{id}/members/{accountId}
     [HttpDelete("{id:int}/members/{accountId}")]

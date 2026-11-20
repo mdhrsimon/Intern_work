@@ -304,7 +304,120 @@ public class ClassService
 
         return AssignMemberResult.Ok($"User {user.FullName ?? user.Email} successfully assigned to {cls.Name}.");
     }
+    public async Task<BulkAssignResult> AssignMembersBulkAsync(int id, List<string>? accountIds)
+    {
+        var ids = accountIds?
+            .Where(a => !string.IsNullOrWhiteSpace(a))
+            .Distinct()
+            .ToList() ?? new List<string>();
 
+        if (ids.Count == 0)
+            return BulkAssignResult.Fail(400, "Select at least one user to assign.");
+        if (ids.Count > 100)
+            return BulkAssignResult.Fail(400, "You can assign at most 100 users at a time.");
+
+        var cls = await _context.ClassChannels.FindAsync(id);
+        if (cls == null)
+            return BulkAssignResult.Fail(404, $"Class with ID {id} was not found.");
+
+        // One query: who among the requested users is already in this class?
+        var alreadyInClass = (await _context.ClassEnrollments
+            .Where(e => e.ClassChannelId == id && ids.Contains(e.ApplicationUserId))
+            .Select(e => e.ApplicationUserId)
+            .ToListAsync())
+            .ToHashSet();
+
+        var response = new BulkAssignResponse();
+        var newlyAssigned = new List<(ApplicationUser User, string RoleInClass)>();
+
+        foreach (var accountId in ids)
+        {
+            if (alreadyInClass.Contains(accountId))
+            {
+                response.Failed.Add(new BulkAssignFailure
+                {
+                    AccountId = accountId,
+                    Reason = "Already in this class."
+                });
+                continue;
+            }
+
+            var user = await _userManager.FindByIdAsync(accountId);
+            if (user == null)
+            {
+                response.Failed.Add(new BulkAssignFailure
+                {
+                    AccountId = accountId,
+                    Reason = "User was not found."
+                });
+                continue;
+            }
+
+            // The class role comes from the account's own role, not from the client
+            var roles = await _userManager.GetRolesAsync(user);
+            var systemRole = RoleHelper.GetPrimaryRole(roles);
+            var roleInClass = systemRole == RoleConstants.Staff
+                ? RoleConstants.Staff
+                : RoleConstants.Student;
+
+            if (!EnrollmentRules.IsValid(systemRole, roleInClass))
+            {
+                response.Failed.Add(new BulkAssignFailure
+                {
+                    AccountId = accountId,
+                    Name = user.FullName ?? user.Email,
+                    Reason = $"'{systemRole}' accounts cannot be enrolled in a class."
+                });
+                continue;
+            }
+
+            _context.ClassEnrollments.Add(new ClassEnrollment
+            {
+                ClassChannelId = id,
+                ApplicationUserId = user.Id,
+                RoleInClass = roleInClass,
+                JoinedAt = DateTime.UtcNow
+            });
+            newlyAssigned.Add((user, roleInClass));
+        }
+
+        if (newlyAssigned.Count == 0)
+            return BulkAssignResult.Ok(response);
+
+        try
+        {
+            // One SaveChanges for everyone = all-or-nothing for the valid users
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            // The unique index (ClassChannelId, ApplicationUserId) caught a race with another admin
+            return BulkAssignResult.Fail(409,
+                "Some users were assigned by someone else at the same time. Please reopen the list and try again.");
+        }
+
+        response.Assigned = newlyAssigned.Count;
+
+        foreach (var (user, roleInClass) in newlyAssigned)
+        {
+            var roleDisplay = roleInClass == RoleConstants.Staff ? "Teacher" : "Student";
+            await _notificationService.CreateAndSendNotificationAsync(
+                user.Id,
+                NotificationType.ClassEnrollmentAdded,
+                $"Enrolled in {cls.Name}",
+                $"You have been assigned to class '{cls.Name}' as a {roleDisplay}.",
+                cls.Id);
+        }
+
+        // ONE summary notification for admins instead of one per user
+        await _notificationService.NotifyAllAdminsAsync(
+            NotificationType.ClassEnrollmentAdded,
+            "Class Enrollment Updated",
+            $"{newlyAssigned.Count} user(s) were assigned to '{cls.Name}'.",
+            cls.Id);
+
+        return BulkAssignResult.Ok(response);
+    }
     public async Task<bool> RemoveMemberAsync(int id, string accountId)
     {
         var enrollment = await _context.ClassEnrollments

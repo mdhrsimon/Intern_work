@@ -68,12 +68,19 @@ public class AccountService
                 ur.UserId == u.Id &&
                 _context.Roles.Any(r => r.Id == ur.RoleId && targetRoles.Contains(r.Name!))));
         }
+        else
+        {
+            // Default view: hide admin accounts unless the Admin filter is selected
+            query = query.Where(u => !_context.UserRoles.Any(ur =>
+                ur.UserId == u.Id &&
+                _context.Roles.Any(r => r.Id == ur.RoleId && r.Name == RoleConstants.Admin)));
+        }
 
         var totalCount = await query.CountAsync();
         var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
 
         var pagedUsers = await query
-            .OrderByDescending(u => u.Id)
+            .OrderBy(u => u.FullName)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
